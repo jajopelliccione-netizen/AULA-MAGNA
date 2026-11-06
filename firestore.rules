@@ -1,0 +1,140 @@
+rules_version = '2';
+
+// ============================================================================
+//  Aula Magna · Occupazione 2026 · Galileo Galilei
+//
+//  >>> PASSO OBBLIGATORIO: sostituisci PASTE_ADMIN_UID_HERE con l'UID dell'utente
+//  >>> admin (Firebase Console > Authentication > Utenti > colonna "UID utente").
+//  >>> Puoi mettere più UID (es. admin + account dedicato al proiettore).
+// ============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- funzioni di utilità ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Staff = utente con email/password il cui UID è nella lista
+    function isStaff() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.uid in ['PASTE_ADMIN_UID_HERE'];
+    }
+
+    function validNick(n) {
+      return n is string && n.size() >= 2 && n.size() <= 16;
+    }
+
+    function notBannedUid() {
+      return !exists(/databases/$(database)/documents/banned/$(request.auth.uid));
+    }
+
+    // ---------- stato dello schermo (solo staff scrive) ----------
+    match /state/{docId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+
+    // ---------- coda karaoke ----------
+    // L'ID del documento di un ragazzo è il suo UID => massimo 1 prenotazione a testa.
+    // L'ordine (campo "order") lo scrive solo lo staff: i ragazzi vengono ordinati per createdAt.
+    match /queue/{id} {
+      allow read: if signedIn();
+
+      allow create: if isStaff() || (
+        signedIn()
+        && id == request.auth.uid
+        && notBannedUid()
+        && request.resource.data.keys().hasOnly(['videoId', 'title', 'thumbnail', 'nickname', 'nicknameKey', 'uid', 'createdAt'])
+        && request.resource.data.keys().hasAll(['videoId', 'title', 'thumbnail', 'nickname', 'nicknameKey', 'uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.videoId is string
+        && request.resource.data.videoId.matches('^[A-Za-z0-9_-]{11}$')
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 150
+        && request.resource.data.thumbnail is string
+        && request.resource.data.thumbnail.size() <= 200
+        && validNick(request.resource.data.nickname)
+        && request.resource.data.nicknameKey is string
+        && request.resource.data.nicknameKey.size() <= 32
+        && !exists(/databases/$(database)/documents/banned/$(request.resource.data.nicknameKey))
+        && (!exists(/databases/$(database)/documents/state/current)
+            || get(/databases/$(database)/documents/state/current).data.get('bookingsOpen', true) == true)
+      );
+
+      allow update: if isStaff();
+      allow delete: if isStaff() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    // ---------- presenze (battito di chi è collegato) ----------
+    match /presence/{uid} {
+      allow read: if isStaff();
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nickname', 'nicknameKey', 'lastSeen'])
+        && validNick(request.resource.data.nickname)
+        && request.resource.data.lastSeen == request.time;
+      allow delete: if isStaff() || (signedIn() && request.auth.uid == uid);
+    }
+
+    // ---------- ban ----------
+    match /banned/{key} {
+      allow get: if signedIn();
+      allow list: if isStaff();
+      allow write: if isStaff();
+    }
+
+    // ---------- gioco dell'impostore ----------
+    // Documento pubblico: la parola e gli impostori ci finiscono SOLO al "Rivela".
+    match /impostor/game {
+      allow read: if signedIn();
+      allow write: if isStaff();
+
+      // Giocatori: ognuno crea/cancella solo se stesso e in fase di voto cambia solo il proprio "vote".
+      match /players/{uid} {
+        allow read: if signedIn();
+
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && notBannedUid()
+          && request.resource.data.keys().hasOnly(['nickname', 'vote'])
+          && validNick(request.resource.data.nickname)
+          && request.resource.data.vote == null
+          && (!exists(/databases/$(database)/documents/impostor/game)
+              || get(/databases/$(database)/documents/impostor/game).data.status in ['lobby', 'reveal'])
+          || isStaff();
+
+        allow update: if isStaff() || (
+          signedIn()
+          && request.auth.uid == uid
+          && get(/databases/$(database)/documents/impostor/game).data.status == 'voting'
+          && exists(/databases/$(database)/documents/impostor/game/roles/$(uid))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vote'])
+          && (request.resource.data.vote == null
+              || (request.resource.data.vote != uid
+                  && exists(/databases/$(database)/documents/impostor/game/players/$(request.resource.data.vote))))
+        );
+
+        allow delete: if isStaff() || (
+          signedIn()
+          && request.auth.uid == uid
+          && (!exists(/databases/$(database)/documents/impostor/game)
+              || get(/databases/$(database)/documents/impostor/game).data.status in ['lobby', 'reveal'])
+        );
+      }
+
+      // Ruolo + parola segreta: leggibile SOLO dal diretto interessato (e dallo staff).
+      match /roles/{uid} {
+        allow read: if isStaff() || (signedIn() && request.auth.uid == uid);
+        allow write: if isStaff();
+      }
+    }
+
+    // Parola e impostori veri: solo staff
+    match /impostor/private {
+      allow read, write: if isStaff();
+    }
+  }
+}
