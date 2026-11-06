@@ -1,4 +1,5 @@
 import { decodeEntities } from './util'
+import type { Kind } from './types'
 
 export interface YtResult {
   videoId: string
@@ -47,12 +48,16 @@ export function isKaraoke(title: string, channel: string): boolean {
   return KARAOKE_RE.test(t) || /karaok/i.test(c)
 }
 
-/** Cerca su YouTube aggiungendo "karaoke" alla query (con cache locale di 24h per risparmiare quota). */
-export async function searchKaraoke(input: string): Promise<YtResult[]> {
+/**
+ * Cerca su YouTube (con cache locale di 24h per risparmiare quota).
+ *  - karaoke: aggiunge "karaoke" alla query e tiene solo le basi karaoke
+ *  - music: cerca musica normale (categoria Musica), senza filtri karaoke
+ */
+export async function searchSongs(input: string, kind: Kind): Promise<YtResult[]> {
   if (!KEY) throw new YtError('Ricerca non configurata (manca la chiave YouTube)')
   const text = input.trim().replace(/\s+/g, ' ')
-  const query = /karaoke/i.test(text) ? text : `${text} karaoke`
-  const ck = query.toLowerCase()
+  const query = kind === 'karaoke' && !/karaoke/i.test(text) ? `${text} karaoke` : text
+  const ck = `${kind}:${query.toLowerCase()}`
   const cached = readCache(ck)
   if (cached) return cached
 
@@ -62,7 +67,8 @@ export async function searchKaraoke(input: string): Promise<YtResult[]> {
     videoEmbeddable: 'true',
     videoSyndicated: 'true',
     safeSearch: 'moderate',
-    maxResults: '25',
+    maxResults: kind === 'karaoke' ? '25' : '12',
+    ...(kind === 'music' ? { videoCategoryId: '10' } : {}),
     regionCode: 'IT',
     relevanceLanguage: 'it',
     fields: 'items(id/videoId,snippet(title,channelTitle))',
@@ -93,7 +99,7 @@ export async function searchKaraoke(input: string): Promise<YtResult[]> {
   const json = (await res.json()) as { items?: { id: { videoId: string }; snippet: { title: string; channelTitle: string } }[] }
   const out: YtResult[] = (json.items ?? [])
     .filter((i) => i.id?.videoId)
-    .filter((i) => isKaraoke(i.snippet.title, i.snippet.channelTitle))
+    .filter((i) => kind === 'music' || isKaraoke(i.snippet.title, i.snippet.channelTitle))
     .map((i) => ({
       videoId: i.id.videoId,
       title: decodeEntities(i.snippet.title),

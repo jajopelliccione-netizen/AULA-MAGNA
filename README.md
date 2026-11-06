@@ -45,7 +45,7 @@ tra i telefoni dei ragazzi, lo schermo del proiettore e il pannello admin.
 > Fai login una volta sul PC del proiettore e il browser se lo ricorda.
 
 ### Cosa possono fare i ragazzi (rules)
-- creare **una sola** prenotazione (il documento si chiama come il loro UID), solo se le prenotazioni sono aperte e non sono bannati; cancellare solo la propria;
+- creare **una sola** richiesta di canzone (il documento si chiama come il loro UID), solo se le richieste sono aperte e non sono bannati; la richiesta nasce sempre «in attesa» (`pending`) e **solo l'admin può approvarla**; cancellare solo la propria;
 - entrare/uscire dal gioco e votare **solo per sé** (campo `vote` del proprio documento, solo in fase di voto);
 - leggere il proprio ruolo/parola **solo** dal proprio documento `impostor/game/roles/{uid}`. La parola e gli impostori veri stanno in `impostor/private` (solo admin) e passano nel documento pubblico solo al "Rivela", quindi leggere il database non permette di barare.
 - Solo l'admin scrive `state`, ordine della coda, gioco, ruoli e ban.
@@ -107,6 +107,15 @@ npm run preview    # prova la build
 
 Oppure da terminale: `npm run build && npx wrangler pages deploy dist --project-name aula-magna`.
 
+## Modalità e approvazione delle canzoni
+
+Le modalità dello schermo sono **Lobby, Karaoke, Musica, Impostore, Pausa**.
+- **Karaoke**: i ragazzi cercano solo basi karaoke con testo e si iscrivono; si forma la coda e chi tocca va sul palco.
+- **Musica**: i ragazzi propongono musica normale a scelta (non karaoke); le canzoni partono sul proiettore una dopo l'altra, senza palco.
+- In **entrambe** una canzone **non entra in coda finché un admin non la approva**: ogni richiesta compare nella sezione **Da approvare** del pannello (con anteprima su YouTube, **Approva**, **Rifiuta** e **Approva tutte**; il numero di richieste in attesa è anche nel titolo della scheda del browser). Il telefono del ragazzo mostra «In attesa di approvazione», poi la posizione in coda oppure «Non approvata». Le canzoni aggiunte a mano dall'admin vanno direttamente in coda.
+- Si può avere una sola richiesta alla volta. L'ordine in coda è quello di approvazione.
+- Passando da Karaoke a Musica (o viceversa) con un brano in corso, il brano interrotto torna nella sua coda: chi stava cantando non perde il turno. Il gobbo mostra solo il karaoke.
+
 ## I tre schermi
 
 - **Admin** (`/admin`): pannello di controllo, dal telefono o dal PC.
@@ -123,7 +132,7 @@ così nessuno può crearsi un account con email e password.
 
 1. PC del proiettore: apri `/schermo`, accedi, premi **Clicca per avviare** (schermo intero + audio sbloccato). Sul PC del gobbo apri `/gobbo` e fai lo stesso.
 2. Dal telefono/PC admin apri `/admin` e scegli la modalità: **Lobby → Karaoke / Impostore → Pausa**.
-3. **Karaoke**: la coda avanza da sola (fine video → 10 secondi di "Prossimo" → parte il successivo). L'admin può mettere in pausa, **ricominciare la canzone da capo**, saltare, regolare il volume, riordinare trascinando ⠿, eliminare, aggiungere a mano, bloccare le prenotazioni, bannare un nickname.
+3. **Karaoke** e **Musica**: la coda avanza da sola (fine video → 10 secondi di "Prossimo" → parte il successivo). L'admin può mettere in pausa, **ricominciare la canzone da capo**, saltare, regolare il volume, riordinare trascinando ⠿, eliminare, aggiungere a mano, bloccare le prenotazioni, bannare un nickname.
    Quando tocca a un ragazzo il suo telefono mostra a schermo intero **TOCCA A TE! Vai sul palco** (e vibra).
 4. **Impostore** (a numeri e a giri):
    1. I ragazzi premono **Entra nella partita**.

@@ -36,9 +36,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
-    // ---------- coda karaoke ----------
-    // L'ID del documento di un ragazzo è il suo UID => massimo 1 prenotazione a testa.
-    // L'ordine (campo "order") lo scrive solo lo staff: i ragazzi vengono ordinati per createdAt.
+    // ---------- richieste e coda (karaoke e musica) ----------
+    // Ogni richiesta nasce "pending" (in attesa): solo lo staff può approvarla (status = approved) o rifiutarla.
+    // L'ID del documento di un ragazzo è il suo UID => massimo 1 richiesta a testa.
+    // L'ordine (campo "order") lo scrive solo lo staff.
     match /queue/{id} {
       allow read: if signedIn();
 
@@ -46,8 +47,10 @@ service cloud.firestore {
         signedIn()
         && id == request.auth.uid
         && notBannedUid()
-        && request.resource.data.keys().hasOnly(['videoId', 'title', 'thumbnail', 'nickname', 'nicknameKey', 'uid', 'createdAt'])
-        && request.resource.data.keys().hasAll(['videoId', 'title', 'thumbnail', 'nickname', 'nicknameKey', 'uid', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['videoId', 'title', 'thumbnail', 'nickname', 'nicknameKey', 'uid', 'createdAt', 'kind', 'status'])
+        && request.resource.data.keys().hasAll(['videoId', 'title', 'thumbnail', 'nickname', 'nicknameKey', 'uid', 'createdAt', 'kind', 'status'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.kind in ['karaoke', 'music']
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.videoId is string

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { signOut } from 'firebase/auth'
-import { Activity, Captions, Home, LogOut, Mic, Monitor, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, Captions, Home, LogOut, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { StaffGate } from '../../components/StaffGate'
 import { UpdateBanner } from '../../components/UpdateBanner'
 import { BrandTitle } from '../../components/Logo'
 import { useAppState, useBanned, useGame, useLive, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { useOutdated } from '../../lib/version'
-import { ensureInitialDocs, logAction, setImpostorConfig, setMode, setPauseMessage } from '../../lib/actions'
+import { ensureInitialDocs, logAction, setImpostorConfig, setPauseMessage, switchMode } from '../../lib/actions'
 import type { ImpostorConfig, LastAction, Mode } from '../../lib/types'
 import KaraokeAdmin from './KaraokeAdmin'
 import ImpostorAdmin from './ImpostorAdmin'
@@ -24,6 +24,7 @@ export default function AdminPage() {
 const MODES: { id: Mode; label: string; hint: string; icon: typeof Home }[] = [
   { id: 'lobby', label: 'Lobby', hint: 'QR e benvenuto', icon: Home },
   { id: 'karaoke', label: 'Karaoke', hint: 'Video e coda', icon: Mic },
+  { id: 'music', label: 'Musica', hint: 'Richieste libere', icon: Music2 },
   { id: 'impostor', label: 'Impostore', hint: 'Gioco di gruppo', icon: VenetianMask },
   { id: 'pause', label: 'Pausa', hint: 'Messaggio a schermo', icon: Pause },
 ]
@@ -36,7 +37,9 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString('it-IT', { hour: '
 
 function AdminInner() {
   const { data: state, ready } = useAppState()
-  const { queue } = useQueue()
+  const { queue: karaokeQueue, pending: karaokePending, all } = useQueue('karaoke')
+  const { queue: musicQueue, pending: musicPending } = useQueue('music')
+  void all
   const { data: game } = useGame()
   const { players } = usePlayers()
   const { online, count } = usePresence()
@@ -46,7 +49,7 @@ function AdminInner() {
   const outdated = useOutdated()
   const [msg, setMsg] = useState('')
   const [msgDirty, setMsgDirty] = useState(false)
-  const [tab, setTab] = useState<'karaoke' | 'impostor'>('karaoke')
+  const [tab, setTab] = useState<'karaoke' | 'music' | 'impostor'>('karaoke')
   const [name, setName] = useState(loadName)
   const [feed, setFeed] = useState<LastAction[]>([])
   const [toast, setToast] = useState<LastAction | null>(null)
@@ -57,7 +60,7 @@ function AdminInner() {
 
   useEffect(() => { ensureInitialDocs().catch((e) => console.error(e)) }, [])
   useEffect(() => { if (!msgDirty) setMsg(state.message) }, [state.message, msgDirty])
-  useEffect(() => { if (state.mode === 'karaoke' || state.mode === 'impostor') setTab(state.mode) }, [state.mode])
+  useEffect(() => { if (state.mode === 'karaoke' || state.mode === 'music' || state.mode === 'impostor') setTab(state.mode) }, [state.mode])
 
   // scrive l'azione e la annuncia agli altri admin
   const act: Act = useCallback(async (text, fn) => {
@@ -84,6 +87,12 @@ function AdminInner() {
       return () => clearTimeout(t)
     }
   }, [la, ready])
+
+  // il titolo della scheda mostra le richieste da approvare, anche se la pagina è in secondo piano
+  const totalPending = karaokePending.length + musicPending.length
+  useEffect(() => {
+    document.title = totalPending > 0 ? `(${totalPending}) Da approvare · Admin` : 'Pannello admin · Occupazione 2026'
+  }, [totalPending])
 
   const ctxValue = useMemo(() => act, [act])
   const config = state.impostorConfig
@@ -151,14 +160,14 @@ function AdminInner() {
               <h2 className="display text-white text-2xl">Cosa mostra lo schermo</h2>
               <span className="eyebrow text-xs hidden sm:block">In onda ora: {MODES.find((m) => m.id === state.mode)?.label}</span>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {MODES.map((m) => {
                 const on = state.mode === m.id
                 const Icon = m.icon
                 return (
                   <button
                     key={m.id}
-                    onClick={() => act(`ha messo lo schermo su ${m.label}`, () => setMode(m.id))}
+                    onClick={() => act(`ha messo lo schermo su ${m.label}`, () => switchMode(m.id, state))}
                     className={`relative text-left rounded-2xl border p-4 transition ${on ? 'bg-brand/18 border-brand ring-1 ring-brand shadow-[0_12px_40px_-16px_rgba(47,147,240,.9)]' : 'bg-white/[.04] border-line hover:bg-white/[.08]'}`}
                   >
                     {on && <span className="absolute top-3 right-3 chip border-good/40 bg-good/10 text-good !py-0.5 !text-[.65rem]"><span className="dot-live !w-1.5 !h-1.5" /> In onda</span>}
@@ -182,23 +191,22 @@ function AdminInner() {
           </section>
 
           {/* ---------- schede ---------- */}
-          <div className="inline-flex self-start rounded-2xl bg-white/[.05] border border-line p-1">
-            {([['karaoke', 'Karaoke', Mic], ['impostor', 'Impostore', VenetianMask]] as const).map(([id, label, Icon]) => (
+          <div className="inline-flex self-start rounded-2xl bg-white/[.05] border border-line p-1 flex-wrap">
+            {([['karaoke', 'Karaoke', Mic, karaokePending.length], ['music', 'Musica', Music2, musicPending.length], ['impostor', 'Impostore', VenetianMask, 0]] as const).map(([id, label, Icon, n]) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
                 className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${tab === id ? 'bg-brand text-white shadow' : 'text-muted hover:text-white'}`}
               >
                 <Icon className="w-4 h-4" /> {label}
+                {n > 0 && <span className="grid place-items-center min-w-5 h-5 px-1 rounded-full bg-warn text-ink text-xs font-black animate-pulse">{n}</span>}
               </button>
             ))}
           </div>
 
-          {tab === 'karaoke' ? (
-            <KaraokeAdmin state={state} queue={queue} presence={online} banned={banned} />
-          ) : (
-            <ImpostorAdmin game={game} players={players} serverNow={serverNow} config={config} onConfig={changeConfig} />
-          )}
+          {tab === 'karaoke' && <KaraokeAdmin kind="karaoke" state={state} queue={karaokeQueue} pending={karaokePending} presence={online} banned={banned} serverNow={serverNow} />}
+          {tab === 'music' && <KaraokeAdmin kind="music" state={state} queue={musicQueue} pending={musicPending} presence={online} banned={banned} serverNow={serverNow} />}
+          {tab === 'impostor' && <ImpostorAdmin game={game} players={players} serverNow={serverNow} config={config} onConfig={changeConfig} />}
         </main>
 
         {toast && (

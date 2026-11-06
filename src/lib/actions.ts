@@ -5,12 +5,15 @@ import {
 import { db } from './firebase'
 import { nicknameKey, shuffle } from './util'
 import { pickWord, recordWord, type WordHistory } from './words'
-import type { Game, ImpostorConfig, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
+import type { AppState, Game, ImpostorConfig, Kind, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
 
 /* ------------------------------ ragazzi ------------------------------ */
 
-export async function bookSong(uid: string, nickname: string, song: { videoId: string; title: string; thumbnail: string }) {
+/** Il ragazzo propone una canzone: finisce tra le richieste "pending" e va in coda solo se un admin la approva. */
+export async function bookSong(uid: string, nickname: string, song: { videoId: string; title: string; thumbnail: string }, kind: Kind) {
   await setDoc(doc(db, 'queue', uid), {
+    kind,
+    status: 'pending',
     videoId: song.videoId,
     title: song.title.slice(0, 150),
     thumbnail: song.thumbnail,
@@ -21,6 +24,7 @@ export async function bookSong(uid: string, nickname: string, song: { videoId: s
   })
 }
 
+/** Annulla la richiesta (anche se è stata rifiutata, per poterne fare un'altra). */
 export const cancelBooking = (uid: string) => deleteDoc(doc(db, 'queue', uid))
 
 export const heartbeat = (uid: string, nickname: string) =>
@@ -36,6 +40,38 @@ const stateRef = () => doc(db, 'state/current')
 export const patchState = (patch: Record<string, unknown>) => setDoc(stateRef(), patch, { merge: true })
 
 export const setMode = (mode: Mode) => patchState({ mode })
+
+const kindOfMode = (m: Mode): Kind | null => (m === 'karaoke' || m === 'music' ? m : null)
+
+/**
+ * Cambia modalità. Passando da karaoke a musica (o viceversa) mentre suona un brano,
+ * il brano interrotto torna nella sua coda, così chi stava cantando non perde il turno.
+ */
+export async function switchMode(mode: Mode, current: AppState) {
+  const np = current.nowPlaying
+  const target = kindOfMode(mode)
+  if (np && target && (np.kind ?? 'karaoke') !== target) {
+    let id = np.queueId
+    if ((await getDoc(doc(db, 'queue', id))).exists()) id = doc(collection(db, 'queue')).id // evita di sovrascrivere una nuova richiesta dello stesso utente
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'queue', id), {
+      kind: np.kind ?? 'karaoke',
+      status: 'approved',
+      videoId: np.videoId,
+      title: np.title,
+      thumbnail: `https://i.ytimg.com/vi/${np.videoId}/mqdefault.jpg`,
+      nickname: np.nickname,
+      nicknameKey: nicknameKey(np.nickname),
+      uid: np.uid,
+      createdAt: np.bookedAt,
+      order: np.bookedAt,
+    })
+    batch.set(stateRef(), { mode, nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null }, { merge: true })
+    await batch.commit()
+    return
+  }
+  await setMode(mode)
+}
 export const setPauseMessage = (message: string) => patchState({ message })
 export const setVolume = (volume: number) => patchState({ volume })
 export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsOpen })
@@ -52,8 +88,10 @@ export const restartSong = () => patchState({ restartNonce: increment(1), player
 
 export const removeFromQueue = (id: string) => deleteDoc(doc(db, 'queue', id))
 
-export async function addManualSong(videoId: string, title: string, nickname: string) {
+export async function addManualSong(videoId: string, title: string, nickname: string, kind: Kind) {
   await setDoc(doc(collection(db, 'queue')), {
+    kind,
+    status: 'approved',
     videoId,
     title: title.slice(0, 150),
     thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
@@ -62,6 +100,15 @@ export async function addManualSong(videoId: string, title: string, nickname: st
     uid: 'manual',
     createdAt: serverTimestamp(),
   })
+}
+
+/** L'admin approva una richiesta: entra in coda in fondo (ordine = istante di approvazione). */
+export const approveRequest = (id: string, nowMs: number) => updateDoc(doc(db, 'queue', id), { status: 'approved', order: nowMs })
+export const rejectRequest = (id: string) => updateDoc(doc(db, 'queue', id), { status: 'rejected' })
+export async function approveAll(ids: string[], nowMs: number) {
+  const batch = writeBatch(db)
+  ids.forEach((id, i) => batch.update(doc(db, 'queue', id), { status: 'approved', order: nowMs + i }))
+  await batch.commit()
 }
 
 /** Dopo un drag&drop riassegna le chiavi d'ordine esistenti (crescenti) alla nuova sequenza. */
@@ -86,6 +133,7 @@ export async function startNextSong(head: QueueItem | undefined) {
     return
   }
   const np: NowPlaying = {
+    kind: head.kind,
     queueId: head.id,
     videoId: head.videoId,
     title: head.title,
@@ -100,17 +148,19 @@ export async function startNextSong(head: QueueItem | undefined) {
   await batch.commit()
 }
 
-export const BETWEEN_MS = 10_000
+/** Pausa tra una canzone e l'altra: 10 s al karaoke (il tempo di salire sul palco), 4 s con la musica. */
+export const BETWEEN_BY_KIND: Record<Kind, number> = { karaoke: 10_000, music: 4_000 }
+export const BETWEEN_MS = BETWEEN_BY_KIND.karaoke
 
-export async function finishCurrent(hasNext: boolean) {
+export async function finishCurrent(hasNext: boolean, kind: Kind = 'karaoke') {
   await patchState(
     hasNext
-      ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_MS, sync: null }
+      ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_BY_KIND[kind], sync: null }
       : { nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null },
   )
 }
 
-export const beginBetween = () => patchState({ playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_MS })
+export const beginBetween = (kind: Kind = 'karaoke') => patchState({ playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_BY_KIND[kind] })
 
 /* ------------------------------- staff: ban ------------------------------- */
 

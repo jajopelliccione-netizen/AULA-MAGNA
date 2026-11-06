@@ -1,7 +1,11 @@
-export type Mode = 'lobby' | 'karaoke' | 'impostor' | 'pause'
+export type Mode = 'lobby' | 'karaoke' | 'music' | 'impostor' | 'pause'
+/** Le due code di canzoni: karaoke (basi con testo) e musica libera. */
+export type Kind = 'karaoke' | 'music'
+export type RequestStatus = 'pending' | 'approved' | 'rejected'
 export type PlayerStatus = 'idle' | 'playing' | 'paused' | 'between'
 
 export interface NowPlaying {
+  kind?: Kind
   queueId: string
   videoId: string
   title: string
@@ -70,6 +74,9 @@ export const DEFAULT_STATE: AppState = {
 
 export interface QueueItem {
   id: string
+  kind: Kind
+  /** pending = in attesa di approvazione; solo gli approved sono in coda */
+  status: RequestStatus
   videoId: string
   title: string
   thumbnail: string

@@ -2,17 +2,23 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Ban, Captions, GripVertical, Lock, Mic, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2 } from 'lucide-react'
-import type { AppState, BannedDoc, PresenceDoc, QueueItem } from '../../lib/types'
+import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
+import type { AppState, BannedDoc, Kind, PresenceDoc, QueueItem } from '../../lib/types'
 import {
-  addManualSong, banNickname, removeFromQueue, reorderQueue, requestSkip, restartSong, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
+  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
 } from '../../lib/actions'
 import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
 import { useAct } from './act'
 
-export default function KaraokeAdmin({ state, queue, presence, banned }: { state: AppState; queue: QueueItem[]; presence: PresenceDoc[]; banned: BannedDoc[] }) {
+const LABELS: Record<Kind, { stage: string; mode: string; manual: string }> = {
+  karaoke: { stage: 'Sul palco', mode: 'Karaoke', manual: 'Chi canta (default Admin)' },
+  music: { stage: 'In riproduzione', mode: 'Musica', manual: 'Chi la chiede (default Admin)' },
+}
+
+export default function KaraokeAdmin({ state, queue, pending, presence, banned, kind, serverNow }: { state: AppState; queue: QueueItem[]; pending: QueueItem[]; presence: PresenceDoc[]; banned: BannedDoc[]; kind: Kind; serverNow: () => number }) {
   const act = useAct()
-  const np = state.nowPlaying
+  const L = LABELS[kind]
+  const np = state.nowPlaying && (state.nowPlaying.kind ?? 'karaoke') === kind ? state.nowPlaying : null
   const [vol, setVol] = useState(state.volume)
   const volTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => setVol(state.volume), [state.volume])
@@ -42,7 +48,7 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
       {/* ---------- colonna sinistra: palco e controlli ---------- */}
       <div className="lg:col-span-2 flex flex-col gap-5">
         <section className="card p-5 flex flex-col gap-4">
-          <h2 className="eyebrow text-xs">Sul palco</h2>
+          <h2 className="eyebrow text-xs">{L.stage}</h2>
           {np ? (
             <div className="flex gap-3 items-center">
               <img src={thumbUrl(np.videoId)} alt="" className="w-28 aspect-video object-cover rounded-xl bg-surface-2" />
@@ -53,7 +59,7 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
             </div>
           ) : (
             <div className="flex items-center gap-3 text-muted rounded-xl bg-white/[.04] border border-line px-4 py-4">
-              <Mic className="w-5 h-5" /> {state.playerStatus === 'between' ? 'Prossimo brano in partenza…' : 'Nessun brano in riproduzione'}
+              {kind === 'karaoke' ? <Mic className="w-5 h-5" /> : <Music2 className="w-5 h-5" />} {state.playerStatus === 'between' ? 'Prossimo brano in partenza…' : 'Nessun brano in riproduzione'}
             </div>
           )}
 
@@ -76,8 +82,8 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
             <span className="w-9 text-right font-bold tabular-nums">{vol}</span>
           </label>
 
-          {state.mode !== 'karaoke' && (
-            <p className="text-warn text-sm rounded-xl bg-warn/10 border border-warn/30 px-3 py-2">Lo schermo non è in modalità Karaoke: la coda non avanza.</p>
+          {state.mode !== kind && (
+            <p className="text-warn text-sm rounded-xl bg-warn/10 border border-warn/30 px-3 py-2">Lo schermo non è in modalità {L.mode}: la coda non avanza.</p>
           )}
         </section>
 
@@ -85,25 +91,27 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
           <h2 className="eyebrow text-xs mb-2">Impostazioni</h2>
           <Switch
             on={state.bookingsOpen}
-            onChange={(v) => act(v ? 'ha aperto le prenotazioni' : 'ha chiuso le prenotazioni', () => setBookingsOpen(v))}
+            onChange={(v) => act(v ? 'ha aperto le richieste' : 'ha chiuso le richieste', () => setBookingsOpen(v))}
             icon={state.bookingsOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-            title="Prenotazioni aperte"
-            hint={state.bookingsOpen ? 'I ragazzi possono prenotare' : 'Prenotazioni bloccate'}
+            title="Richieste aperte"
+            hint={state.bookingsOpen ? 'I ragazzi possono proporre canzoni' : 'Richieste bloccate'}
           />
-          <Switch
+          {kind === 'karaoke' && <Switch
             on={state.gobboAudio}
             onChange={(v) => act(v ? 'ha attivato l’audio sul gobbo' : 'ha spento l’audio sul gobbo', () => setGobboAudio(v))}
             icon={<Captions className="w-5 h-5" />}
             title="Audio anche sul gobbo"
             hint="Di norma l’audio esce solo dallo schermo del proiettore"
-          />
+          />}
         </section>
 
-        <AddSong />
+        <AddSong kind={kind} />
       </div>
 
       {/* ---------- colonna destra: coda e ban ---------- */}
       <div className="lg:col-span-3 flex flex-col gap-5">
+        <Requests pending={pending} serverNow={serverNow} />
+
         <section className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="display text-white text-2xl">Coda <span className="text-muted">({queue.length})</span></h2>
@@ -166,7 +174,7 @@ function Row({ item, index, presence, queue }: { item: QueueItem; index: number;
   )
 }
 
-function AddSong() {
+function AddSong({ kind }: { kind: Kind }) {
   const act = useAct()
   const [link, setLink] = useState('')
   const [title, setTitle] = useState('')
@@ -181,7 +189,7 @@ function AddSong() {
     setErr('')
     try {
       const t = title.trim() || (await fetchVideoTitle(id)) || 'Video YouTube'
-      await act(`ha aggiunto «${t}» in coda`, () => addManualSong(id, t, who.trim() || 'Admin'))
+      await act(`ha aggiunto «${t}» in coda`, () => addManualSong(id, t, who.trim() || 'Admin', kind))
       setLink(''); setTitle(''); setWho('')
     } catch (ex) {
       setErr((ex as Error).message)
@@ -191,10 +199,10 @@ function AddSong() {
   }
   return (
     <form onSubmit={submit} className="card p-5 flex flex-col gap-3">
-      <h2 className="eyebrow text-xs">Aggiungi una canzone a mano</h2>
+      <h2 className="eyebrow text-xs">Aggiungi una canzone a mano (va subito in coda)</h2>
       <input className="input" placeholder="Link YouTube o ID video" value={link} onChange={(e) => setLink(e.target.value)} />
       <input className="input" placeholder="Titolo (facoltativo)" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <input className="input" placeholder="Chi canta (default Admin)" value={who} onChange={(e) => setWho(e.target.value)} maxLength={16} />
+      <input className="input" placeholder={LABELS[kind].manual} value={who} onChange={(e) => setWho(e.target.value)} maxLength={16} />
       {err && <p className="text-bad text-sm">{err}</p>}
       <button className="btn btn-primary py-3" disabled={busy || !link.trim()}><Plus className="w-4 h-4" /> {busy ? 'Aggiungo…' : 'Aggiungi in coda'}</button>
     </form>
@@ -237,4 +245,39 @@ function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: Q
 async function unbanAll(b: BannedDoc, all: BannedDoc[]) {
   await unban(b.id)
   await Promise.all(all.filter((x) => x.uid && x.nickname === b.nickname).map((x) => unban(x.id)))
+}
+
+/** Richieste in attesa: nessuna canzone entra in coda senza l'approvazione di un admin. */
+function Requests({ pending, serverNow }: { pending: QueueItem[]; serverNow: () => number }) {
+  const act = useAct()
+  return (
+    <section className={`card p-5 ${pending.length ? 'ring-1 ring-warn/60 shadow-[0_12px_50px_-24px_rgba(255,200,87,.9)]' : ''}`}>
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        <h2 className="display text-white text-2xl flex items-center gap-2">
+          Da approvare
+          <span className={`chip ${pending.length ? 'border-warn/50 bg-warn/15 text-warn' : ''}`}>{pending.length}</span>
+        </h2>
+        {pending.length > 1 && (
+          <button className="btn btn-success text-sm py-2 px-3" onClick={() => act(`ha approvato ${pending.length} richieste`, () => approveAll(pending.map((p) => p.id), serverNow()))}>
+            <Check className="w-4 h-4" /> Approva tutte
+          </button>
+        )}
+      </div>
+      {pending.length === 0 && <p className="text-muted text-sm rounded-xl bg-white/[.04] border border-line px-4 py-5 text-center">Nessuna richiesta in attesa. Quando qualcuno propone una canzone compare qui.</p>}
+      <ul className="flex flex-col gap-2">
+        {pending.map((r) => (
+          <li key={r.id} className="flex items-center gap-2.5 rounded-2xl bg-warn/[.07] border border-warn/30 p-2">
+            <img src={r.thumbnail} alt="" className="w-24 aspect-video object-cover rounded-lg bg-surface-2" />
+            <div className="min-w-0 flex-1">
+              <div className="font-bold truncate">{r.nickname}</div>
+              <div className="text-xs text-muted line-clamp-2">{r.title}</div>
+              <a className="text-[.7rem] text-ice underline underline-offset-2" href={`https://www.youtube.com/watch?v=${r.videoId}`} target="_blank" rel="noreferrer">Guarda su YouTube</a>
+            </div>
+            <button className="btn btn-success px-3 py-2.5" onClick={() => act(`ha approvato «${r.title}» di ${r.nickname}`, () => approveRequest(r.id, serverNow()))}><Check className="w-4 h-4" /> Approva</button>
+            <button className="btn btn-danger btn-icon" title="Rifiuta" onClick={() => act(`ha rifiutato «${r.title}» di ${r.nickname}`, () => rejectRequest(r.id))}><X className="w-4 h-4" /></button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
 }

@@ -11,7 +11,7 @@ import { nicknameKey } from '../../lib/util'
 import { ArrowRight, Ban, Gamepad2, Mic, Pause, User } from 'lucide-react'
 import { BrandTitle, Logo } from '../../components/Logo'
 import { BRAND } from '../../lib/brand'
-import KaraokeView from './KaraokeView'
+import SongView from './SongView'
 import ImpostorView from './ImpostorView'
 
 const NICK_KEY = 'aula.nick'
@@ -81,8 +81,8 @@ export default function PhonePage() {
     >
       {!ready || !uid ? (
         <Center>Mi collego…</Center>
-      ) : state.mode === 'karaoke' ? (
-        <KaraokeView uid={uid} nick={nick} state={state} />
+      ) : state.mode === 'karaoke' || state.mode === 'music' ? (
+        <SongView key={state.mode} uid={uid} nick={nick} state={state} kind={state.mode} />
       ) : state.mode === 'impostor' ? (
         <ImpostorView uid={uid} nick={nick} />
       ) : state.mode === 'pause' ? (

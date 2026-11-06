@@ -1,33 +1,55 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Check, Lock, Mic, Music2, Plus, Search, X } from 'lucide-react'
+import { Check, Clock, Lock, Mic, Music2, Plus, Search, X } from 'lucide-react'
 import { useQueue } from '../../lib/hooks'
 import { bookSong, cancelBooking } from '../../lib/actions'
-import { searchKaraoke, youtubeConfigured, YtError, type YtResult } from '../../lib/youtube'
+import { searchSongs, youtubeConfigured, YtError, type YtResult } from '../../lib/youtube'
 import { isProfane } from '../../lib/profanity'
 import { plural } from '../../lib/util'
-import type { AppState } from '../../lib/types'
+import type { AppState, Kind } from '../../lib/types'
 
-export default function KaraokeView({ uid, nick, state }: { uid: string; nick: string; state: AppState }) {
-  const { queue } = useQueue()
+const TEXT: Record<Kind, { title: string; sub: string; placeholder: string; button: string; stage: string; now: string; empty: string }> = {
+  karaoke: {
+    title: 'Prenota la tua canzone',
+    sub: 'Cerca titolo e artista: mostriamo solo basi karaoke con il testo.',
+    placeholder: 'Es. Albachiara Vasco Rossi',
+    button: 'Prenota',
+    stage: 'Sul palco e in coda',
+    now: 'Ora sul palco',
+    empty: 'Nessuno in coda: sii il primo!',
+  },
+  music: {
+    title: 'Scegli la musica',
+    sub: 'Proponi la canzone che vuoi sentire: parte quando un admin la approva.',
+    placeholder: 'Es. Blanco Brividi',
+    button: 'Proponi',
+    stage: 'In onda e in coda',
+    now: 'Ora in onda',
+    empty: 'Nessuna canzone in coda: proponi la prima!',
+  },
+}
+
+export default function SongView({ uid, nick, state, kind }: { uid: string; nick: string; state: AppState; kind: Kind }) {
+  const t = TEXT[kind]
+  const { queue, all } = useQueue(kind)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<YtResult[]>([])
   const [searching, setSearching] = useState(false)
   const [err, setErr] = useState('')
   const [booking, setBooking] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
   const [dismissed, setDismissed] = useState('')
 
-  const myIndex = queue.findIndex((i) => i.uid === uid)
-  const mine = myIndex >= 0 ? queue[myIndex] : null
-  const np = state.nowPlaying
+  // una sola richiesta a testa (karaoke o musica): può essere in attesa, approvata o rifiutata
+  const mine = all.find((i) => i.uid === uid) ?? null
+  const myIndex = mine && mine.status === 'approved' && mine.kind === kind ? queue.findIndex((i) => i.id === mine.id) : -1
+  const np = state.nowPlaying && (state.nowPlaying.kind ?? 'karaoke') === kind ? state.nowPlaying : null
 
-  // "TOCCA A TE": sono il prossimo mentre scorre il conto alla rovescia, oppure sto cantando
+  // "TOCCA A TE": solo al karaoke, quando sono il prossimo (conto alla rovescia) o sto cantando
   const head = queue[0]
   const callKey =
-    state.playerStatus === 'between' && head && head.uid === uid
-      ? `${uid}:${head.createdAt}`
-      : np && np.uid === uid
-        ? `${uid}:${np.bookedAt}`
-        : ''
+    kind !== 'karaoke' ? ''
+      : state.playerStatus === 'between' && head && head.uid === uid ? `${uid}:${head.createdAt}`
+      : np && np.uid === uid ? `${uid}:${np.bookedAt}` : ''
   const showCall = callKey !== '' && callKey !== dismissed
   const lastVibrated = useRef('')
   useEffect(() => {
@@ -43,10 +65,11 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
     if (isProfane(q)) return setErr('Ricerca non consentita')
     setSearching(true)
     setErr('')
+    setSent(false)
     try {
-      const r = await searchKaraoke(q)
+      const r = await searchSongs(q, kind)
       setResults(r.filter((x) => !isProfane(x.title)))
-      if (r.length === 0) setErr('Nessuna versione karaoke trovata: prova con titolo + artista (es. "Albachiara Vasco Rossi")')
+      if (r.length === 0) setErr(kind === 'karaoke' ? 'Nessuna versione karaoke trovata: prova con titolo + artista (es. "Albachiara Vasco Rossi")' : 'Nessun risultato: prova con titolo + artista')
     } catch (ex) {
       setErr(ex instanceof YtError ? ex.message : 'Errore nella ricerca')
     } finally {
@@ -59,11 +82,12 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
     setBooking(r.videoId)
     setErr('')
     try {
-      await bookSong(uid, nick, r)
+      await bookSong(uid, nick, r, kind)
       setResults([])
       setQ('')
+      setSent(true)
     } catch {
-      setErr('Non sono riuscito a prenotare: le prenotazioni potrebbero essere chiuse o hai già una canzone in coda')
+      setErr('Non sono riuscito a inviare la richiesta: le richieste potrebbero essere chiuse o ne hai già una')
     } finally {
       setBooking(null)
     }
@@ -78,29 +102,25 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
 
       {!state.bookingsOpen && (
         <div className="flex items-center gap-2.5 rounded-2xl bg-bad/12 border border-bad/40 px-4 py-3 text-sm font-semibold text-[#ff9aab]">
-          <Lock className="w-4 h-4 shrink-0" /> Le prenotazioni sono chiuse al momento
+          <Lock className="w-4 h-4 shrink-0" /> Le richieste sono chiuse al momento
         </div>
       )}
 
       {mine ? (
-        <section className="card p-4 flex flex-col gap-4 ring-1 ring-brand/50">
-          <div className="eyebrow text-xs">La tua prenotazione</div>
-          <div className="flex gap-3 items-center">
-            <img src={mine.thumbnail} alt="" width={112} height={63} className="rounded-xl w-28 aspect-video object-cover bg-surface-2" />
-            <div className="min-w-0 font-semibold leading-snug line-clamp-3 text-sm">{mine.title}</div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-brand/12 border border-brand/35 px-4 py-3">
-            <Music2 className="w-5 h-5 text-ice shrink-0" />
-            <div className="display text-white text-[1.7rem]">{position}</div>
-          </div>
-          <button className="btn btn-danger" onClick={() => cancelBooking(uid)}><X className="w-4 h-4" /> Annulla prenotazione</button>
-        </section>
+        <MyRequest
+          item={mine}
+          kindHere={kind}
+          position={position}
+          inAir={!!np && np.uid === uid}
+          onCancel={() => cancelBooking(uid)}
+        />
       ) : (
         <section className="flex flex-col gap-3">
           <div>
-            <h2 className="display text-white text-3xl">Prenota la tua canzone</h2>
-            <p className="text-sm text-muted mt-1">Cerca titolo e artista: mostriamo solo basi karaoke con il testo.</p>
+            <h2 className="display text-white text-3xl">{t.title}</h2>
+            <p className="text-sm text-muted mt-1">{t.sub}</p>
           </div>
+          {sent && <p className="text-good text-sm flex items-center gap-2"><Check className="w-4 h-4" /> Richiesta inviata</p>}
           <form onSubmit={search} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -109,7 +129,7 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
                 type="search"
                 inputMode="search"
                 enterKeyHint="search"
-                placeholder="Es. Albachiara Vasco Rossi"
+                placeholder={t.placeholder}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 disabled={!state.bookingsOpen}
@@ -127,8 +147,8 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
                   <div className="text-sm font-semibold leading-snug line-clamp-2">{r.title}</div>
                   <div className="text-xs text-muted truncate mt-0.5">{r.channel}</div>
                 </div>
-                <button className="btn btn-primary px-3 py-2.5" disabled={booking !== null || !state.bookingsOpen} onClick={() => book(r)} aria-label="Prenota">
-                  {booking === r.videoId ? '…' : <><Plus className="w-4 h-4" /> Prenota</>}
+                <button className="btn btn-primary px-3 py-2.5" disabled={booking !== null || !state.bookingsOpen} onClick={() => book(r)}>
+                  {booking === r.videoId ? '…' : <><Plus className="w-4 h-4" /> {t.button}</>}
                 </button>
               </li>
             ))}
@@ -138,20 +158,20 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
 
       <section>
         <div className="flex items-center justify-between mb-2.5">
-          <h2 className="eyebrow text-xs">Sul palco e in coda</h2>
+          <h2 className="eyebrow text-xs">{t.stage}</h2>
           {queue.length > 0 && <span className="chip">{queue.length}</span>}
         </div>
         {np && (
           <div className="card p-3 mb-2.5 flex gap-3 items-center ring-1 ring-good/50">
-            <span className="grid place-items-center w-10 h-10 rounded-full bg-good/15 text-good shrink-0"><Mic className="w-5 h-5" /></span>
+            <span className="grid place-items-center w-10 h-10 rounded-full bg-good/15 text-good shrink-0">{kind === 'karaoke' ? <Mic className="w-5 h-5" /> : <Music2 className="w-5 h-5" />}</span>
             <div className="min-w-0">
-              <div className="text-[.65rem] font-bold uppercase tracking-widest text-good">Ora sul palco</div>
+              <div className="text-[.65rem] font-bold uppercase tracking-widest text-good">{t.now}</div>
               <div className="font-bold truncate">{np.nickname}</div>
               <div className="text-xs text-muted truncate">{np.title}</div>
             </div>
           </div>
         )}
-        {queue.length === 0 && !np && <p className="text-muted text-sm">Nessuno in coda: sii il primo!</p>}
+        {queue.length === 0 && !np && <p className="text-muted text-sm">{t.empty}</p>}
         <ol className="flex flex-col gap-1.5">
           {queue.slice(0, 12).map((it, i) => (
             <li key={it.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm border ${it.uid === uid ? 'bg-brand/12 border-brand/50' : 'bg-white/[.04] border-line'}`}>
@@ -164,6 +184,53 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
         {queue.length > 12 && <p className="text-xs text-muted mt-2">e altre {queue.length - 12} canzoni</p>}
       </section>
     </div>
+  )
+}
+
+function MyRequest({ item, kindHere, position, inAir, onCancel }: { item: ReturnType<typeof useQueue>['all'][number]; kindHere: Kind; position: string; inAir: boolean; onCancel: () => void }) {
+  const other = item.kind !== kindHere
+  const label = item.kind === 'karaoke' ? 'karaoke' : 'musica'
+  return (
+    <section className={`card p-4 flex flex-col gap-4 ring-1 ${item.status === 'rejected' ? 'ring-bad/50' : item.status === 'pending' ? 'ring-warn/50' : 'ring-brand/50'}`}>
+      <div className="eyebrow text-xs">La tua richiesta · {label}</div>
+      <div className="flex gap-3 items-center">
+        <img src={item.thumbnail} alt="" width={112} height={63} className="rounded-xl w-28 aspect-video object-cover bg-surface-2" />
+        <div className="min-w-0 font-semibold leading-snug line-clamp-3 text-sm">{item.title}</div>
+      </div>
+
+      {item.status === 'pending' && (
+        <div className="flex items-start gap-3 rounded-xl bg-warn/10 border border-warn/35 px-4 py-3">
+          <Clock className="w-5 h-5 text-warn shrink-0 mt-0.5" />
+          <div>
+            <div className="display text-white text-2xl leading-none">In attesa di approvazione</div>
+            <p className="text-xs text-muted mt-1.5">Un admin deve approvarla prima che entri in coda. Tieni aperta questa pagina.</p>
+          </div>
+        </div>
+      )}
+
+      {item.status === 'approved' && (
+        <div className="flex items-center gap-3 rounded-xl bg-brand/12 border border-brand/35 px-4 py-3">
+          <Music2 className="w-5 h-5 text-ice shrink-0" />
+          <div className="display text-white text-[1.7rem]">
+            {inAir ? 'È in onda adesso' : other ? `Approvata: è nella coda ${label}` : position}
+          </div>
+        </div>
+      )}
+
+      {item.status === 'rejected' && (
+        <div className="flex items-start gap-3 rounded-xl bg-bad/10 border border-bad/35 px-4 py-3">
+          <X className="w-5 h-5 text-bad shrink-0 mt-0.5" />
+          <div>
+            <div className="display text-white text-2xl leading-none">Non approvata</div>
+            <p className="text-xs text-muted mt-1.5">Scegline un’altra: questa non può essere messa in coda.</p>
+          </div>
+        </div>
+      )}
+
+      <button className={`btn ${item.status === 'rejected' ? 'btn-primary' : 'btn-danger'}`} onClick={onCancel}>
+        {item.status === 'rejected' ? 'Scegli un’altra canzone' : <><X className="w-4 h-4" /> Annulla richiesta</>}
+      </button>
+    </section>
   )
 }
 

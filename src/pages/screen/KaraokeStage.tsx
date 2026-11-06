@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Mic, Pause, Music2, Users } from 'lucide-react'
-import type { AppState, QueueItem } from '../../lib/types'
-import { BETWEEN_MS } from '../../lib/actions'
+import type { AppState, Kind, QueueItem } from '../../lib/types'
+import { BETWEEN_BY_KIND, BETWEEN_MS } from '../../lib/actions'
 import { useNow } from '../../lib/hooks'
 import KaraokePlayer from '../../components/KaraokePlayer'
 import { Logo } from '../../components/Logo'
@@ -9,9 +9,10 @@ import { BRAND } from '../../lib/brand'
 import { QR, QRCard, shortUrl } from './QR'
 import { useKaraokeController } from './useKaraokeController'
 
-/** Schermo del proiettore in modalità karaoke: video + coda + QR. Qui gira anche il controller della coda. */
-export default function KaraokeStage({ state, queue, active, serverNow }: { state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number }) {
-  const { finish, toast } = useKaraokeController(state, queue, active)
+/** Schermo del proiettore in modalità karaoke o musica: video + coda + QR. Qui gira anche il controller della coda. */
+export default function KaraokeStage({ state, queue, active, serverNow, kind }: { state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number; kind: Kind }) {
+  const { finish, toast } = useKaraokeController(state, queue, active, kind)
+  const music = kind === 'music'
   const now = useNow(100)
   const [qrSize] = useState(() => Math.round(Math.min(window.innerWidth * 0.115, window.innerHeight * 0.22)))
   const np = state.nowPlaying
@@ -36,12 +37,21 @@ export default function KaraokeStage({ state, queue, active, serverNow }: { stat
           <div className="absolute inset-x-0 bottom-0 pointer-events-none bg-gradient-to-t from-black/90 via-black/55 to-transparent px-[2vw] pt-[8vh] pb-[2.4vh]">
             <div className="flex items-center gap-[1.4vw]">
               <div className="grid place-items-center w-[4.6vw] h-[4.6vw] rounded-full bg-brand shadow-[0_0_40px_rgba(47,147,240,.7)]">
-                <Mic className="w-[2.3vw] h-[2.3vw] text-white" />
+                {music ? <Music2 className="w-[2.3vw] h-[2.3vw] text-white" /> : <Mic className="w-[2.3vw] h-[2.3vw] text-white" />}
               </div>
               <div className="min-w-0">
-                <div className="eyebrow text-[1.2vw]">Ora sul palco</div>
-                <div className="display text-white text-[4.4vw] truncate">{np.nickname}</div>
-                <div className="text-[1.45vw] font-medium text-white/80 truncate">{np.title}</div>
+                <div className="eyebrow text-[1.2vw]">{music ? 'Ora in onda' : 'Ora sul palco'}</div>
+                {music ? (
+                  <>
+                    <div className="display text-white text-[3.2vw] truncate">{np.title}</div>
+                    <div className="text-[1.45vw] font-medium text-white/80 truncate">Richiesta da <b className="text-white">{np.nickname}</b></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="display text-white text-[4.4vw] truncate">{np.nickname}</div>
+                    <div className="text-[1.45vw] font-medium text-white/80 truncate">{np.title}</div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -59,11 +69,20 @@ export default function KaraokeStage({ state, queue, active, serverNow }: { stat
         {/* ---------- prossimo: conto alla rovescia ---------- */}
         {!np && state.playerStatus === 'between' && head && (
           <div className="absolute inset-0 bg-stage flex flex-col items-center justify-center text-center gap-[2.4vh] px-[4vw]">
-            <div className="eyebrow text-[1.8vw]">Prossimo al microfono</div>
-            <div className="display grad-text text-[8.5vw] max-w-[60vw] truncate">{head.nickname}</div>
-            <div className="text-[2.1vw] font-medium text-white/85 max-w-[52vw] line-clamp-2">{head.title}</div>
-            <CountdownRing left={left} size={Math.round(window.innerHeight * 0.26)} />
-            <div className="text-[1.5vw] text-muted">{head.nickname}, preparati e raggiungi il palco</div>
+            <div className="eyebrow text-[1.8vw]">{music ? 'Prossima canzone' : 'Prossimo al microfono'}</div>
+            {music ? (
+              <>
+                <div className="display grad-text text-[5.5vw] max-w-[62vw] line-clamp-2">{head.title}</div>
+                <div className="text-[2.1vw] font-medium text-white/85">Richiesta da <b className="text-white">{head.nickname}</b></div>
+              </>
+            ) : (
+              <>
+                <div className="display grad-text text-[8.5vw] max-w-[60vw] truncate">{head.nickname}</div>
+                <div className="text-[2.1vw] font-medium text-white/85 max-w-[52vw] line-clamp-2">{head.title}</div>
+              </>
+            )}
+            <CountdownRing left={left} total={BETWEEN_BY_KIND[kind]} size={Math.round(window.innerHeight * 0.26)} />
+            {!music && <div className="text-[1.5vw] text-muted">{head.nickname}, preparati e raggiungi il palco</div>}
           </div>
         )}
 
@@ -76,11 +95,11 @@ export default function KaraokeStage({ state, queue, active, serverNow }: { stat
               <>
                 <div className="flex flex-col gap-[2.4vh] max-w-[30vw]">
                   <Logo size={Math.round(window.innerHeight * 0.13)} className="anim-floaty" />
-                  <div className="eyebrow text-[1.6vw]">Karaoke · Aula Magna</div>
-                  <div className="display grad-text text-[5.8vw]">{state.bookingsOpen ? 'Prenota la tua canzone!' : 'Prenotazioni chiuse'}</div>
+                  <div className="eyebrow text-[1.6vw]">{music ? 'Musica' : 'Karaoke'} · Aula Magna</div>
+                  <div className="display grad-text text-[5.8vw]">{state.bookingsOpen ? (music ? 'Scegli la musica!' : 'Prenota la tua canzone!') : 'Richieste chiuse'}</div>
                   {state.bookingsOpen && (
                     <ol className="flex flex-col gap-[1.2vh] text-[1.5vw] font-medium text-white/85">
-                      {['Inquadra il QR con il telefono', 'Scegli la tua canzone karaoke', 'Vai sul palco quando tocca a te'].map((t, i) => (
+                      {(music ? ['Inquadra il QR con il telefono', 'Cerca la canzone che vuoi sentire', 'Un admin la approva e parte'] : ['Inquadra il QR con il telefono', 'Scegli la tua canzone karaoke', 'Un admin la approva, poi vai sul palco']).map((t, i) => (
                         <li key={t} className="flex items-center gap-[1vw]">
                           <span className="grid place-items-center w-[2.4vw] h-[2.4vw] rounded-full bg-brand/25 border border-brand/60 text-ice font-bold text-[1.2vw]">{i + 1}</span>
                           {t}
@@ -89,7 +108,7 @@ export default function KaraokeStage({ state, queue, active, serverNow }: { stat
                     </ol>
                   )}
                 </div>
-                <QRCard size={Math.round(Math.min(window.innerHeight * 0.5, window.innerWidth * 0.26))} title="Prenota qui" />
+                <QRCard size={Math.round(Math.min(window.innerHeight * 0.5, window.innerWidth * 0.26))} title={music ? 'Proponi qui' : 'Prenota qui'} />
               </>
             )}
           </div>
@@ -124,14 +143,14 @@ export default function KaraokeStage({ state, queue, active, serverNow }: { stat
               </div>
             </li>
           ))}
-          {next5.length === 0 && <li className="card p-[1.4vw] text-[1.3vw] text-muted">Nessuno in coda. Prenota dal telefono!</li>}
+          {next5.length === 0 && <li className="card p-[1.4vw] text-[1.3vw] text-muted">Nessuno in coda. Chiedila dal telefono!</li>}
           {queue.length > 5 && <li className="text-[1.1vw] text-muted font-semibold px-[.4vw]">{queue.length - 5 === 1 ? 'e un’altra canzone' : `e altre ${queue.length - 5} canzoni`}</li>}
         </ol>
 
         <div className="card flex items-center gap-[1vw] p-[.9vw]">
           <QR size={qrSize} />
           <div className="min-w-0">
-            <div className="display text-white text-[1.9vw]">{state.bookingsOpen ? 'Prenota la tua canzone' : 'Prenotazioni chiuse'}</div>
+            <div className="display text-white text-[1.9vw]">{state.bookingsOpen ? (music ? 'Proponi una canzone' : 'Prenota la tua canzone') : 'Richieste chiuse'}</div>
             <div className="text-[1vw] font-semibold text-ice mt-[.4vw] break-all">{shortUrl()}</div>
           </div>
         </div>
@@ -140,10 +159,10 @@ export default function KaraokeStage({ state, queue, active, serverNow }: { stat
   )
 }
 
-export function CountdownRing({ left, size }: { left: number; size: number }) {
+export function CountdownRing({ left, size, total = BETWEEN_MS }: { left: number; size: number; total?: number }) {
   const r = 46
   const c = 2 * Math.PI * r
-  const frac = Math.min(1, left / BETWEEN_MS)
+  const frac = Math.min(1, left / total)
   return (
     <div className="relative grid place-items-center" style={{ width: size, height: size }}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">

@@ -21,7 +21,7 @@ export default function GobboPage() {
 function GobboInner() {
   const [started, setStarted] = useState(false)
   const { data: state, ready } = useAppState()
-  const { queue } = useQueue()
+  const { queue } = useQueue('karaoke')
   const serverNow = useServerClock()
   const now = useNow(100)
   const outdated = useOutdated()
@@ -51,7 +51,7 @@ function GobboInner() {
         <div className="absolute inset-0 bg-stage flex flex-col items-center justify-center gap-[3vh] text-center">
           <Logo size={Math.round(window.innerHeight * 0.2)} className="anim-floaty" />
           <div className="display grad-text text-[7vw]">{BRAND.title}</div>
-          <div className="eyebrow text-[1.8vw]">{active ? 'In attesa della prossima canzone' : 'Karaoke non attivo'}</div>
+          <div className="eyebrow text-[1.8vw]">{active ? 'In attesa della prossima canzone' : state.mode === 'music' ? 'Modalità musica: il gobbo è a riposo' : 'Karaoke non attivo'}</div>
         </div>
       )}
 

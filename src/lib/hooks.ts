@@ -3,7 +3,7 @@ import { collection, doc, getDocFromServer, onSnapshot, serverTimestamp, setDoc 
 import { db } from './firebase'
 import { useAuth } from './auth'
 import { snapData } from './util'
-import { DEFAULT_GAME, DEFAULT_STATE, type AppState, type Game, type PlayerDoc, type QueueItem, type PresenceDoc, type BannedDoc } from './types'
+import { DEFAULT_GAME, DEFAULT_STATE, type AppState, type Game, type Kind, type PlayerDoc, type QueueItem, type PresenceDoc, type BannedDoc, type RequestStatus } from './types'
 
 /** Ascolta un documento. Se non esiste restituisce il fallback. */
 export function useDoc<T extends object>(path: string | null, fallback: T): { data: T; ready: boolean } {
@@ -68,12 +68,19 @@ export function useGame(enabled = true) {
   return { data, ready: res.ready }
 }
 
-export function useQueue(enabled = true) {
+/**
+ * Richieste di canzoni. `queue` = solo quelle APPROVATE (la coda vera), `pending` = in attesa di approvazione.
+ * Con `kind` si filtra per karaoke o musica.
+ */
+export function useQueue(kind?: Kind, enabled = true) {
   const { items, ready } = useCollection<QueueItem>(enabled ? 'queue' : null, (id, d) => {
     const createdAt = (d.createdAt as number | undefined) ?? Date.now()
     const order = d.order as number | undefined
     return {
       id,
+      kind: (d.kind as Kind | undefined) ?? 'karaoke',
+      // i documenti vecchi (senza status) erano già in coda
+      status: (d.status as RequestStatus | undefined) ?? 'approved',
       videoId: String(d.videoId ?? ''),
       title: String(d.title ?? ''),
       thumbnail: String(d.thumbnail ?? ''),
@@ -85,8 +92,11 @@ export function useQueue(enabled = true) {
       key: order ?? createdAt,
     }
   })
-  const sorted = [...items].sort((a, b) => a.key - b.key || a.id.localeCompare(b.id))
-  return { queue: sorted, ready }
+  const sortFn = (a: QueueItem, b: QueueItem) => a.key - b.key || a.id.localeCompare(b.id)
+  const mine = kind ? items.filter((i) => i.kind === kind) : items
+  const queue = mine.filter((i) => i.status === 'approved').sort(sortFn)
+  const pending = mine.filter((i) => i.status === 'pending').sort((a, b) => a.createdAt - b.createdAt)
+  return { queue, pending, all: items, ready }
 }
 
 export function usePlayers(enabled = true) {

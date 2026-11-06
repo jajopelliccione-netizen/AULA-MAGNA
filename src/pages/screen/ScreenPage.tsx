@@ -19,7 +19,8 @@ export default function ScreenPage() {
 function ScreenInner() {
   const [started, setStarted] = useState(false)
   const { data: state, ready } = useAppState()
-  const { queue } = useQueue()
+  const kind = state.mode === 'music' ? 'music' : 'karaoke'
+  const { queue } = useQueue(kind)
   const { data: game } = useGame()
   const { players } = usePlayers(state.mode === 'impostor')
   const { count } = usePresence()
@@ -46,8 +47,8 @@ function ScreenInner() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-ink relative">
-      {/* Il karaoke resta montato per tenere vivo il player */}
-      <KaraokeStage state={state} queue={queue} active={state.mode === 'karaoke'} serverNow={serverNow} />
+      {/* Karaoke e musica restano montati per tenere vivo il player */}
+      <KaraokeStage state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
       {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} /></div>}
       {state.mode === 'pause' && <div className="absolute inset-0"><PauseScreen message={state.message} /></div>}
       {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} serverNow={serverNow} /></div>}

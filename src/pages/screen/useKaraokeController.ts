@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AppState, QueueItem } from '../../lib/types'
-import { BETWEEN_MS, beginBetween, finishCurrent, patchState, startNextSong } from '../../lib/actions'
+import type { AppState, Kind, QueueItem } from '../../lib/types'
+import { BETWEEN_BY_KIND, beginBetween, finishCurrent, patchState, startNextSong } from '../../lib/actions'
 
 /**
  * Manda avanti la coda da sola. Gira SOLO sullo schermo del proiettore, quando la modalità è "karaoke":
  *  fine video → 10 secondi di "Prossimo" → parte il brano successivo.
  */
-export function useKaraokeController(state: AppState, queue: QueueItem[], active: boolean) {
+export function useKaraokeController(state: AppState, queue: QueueItem[], active: boolean, kind: Kind) {
   const stateRef = useRef(state)
   const queueRef = useRef(queue)
   const activeRef = useRef(active)
@@ -25,7 +25,7 @@ export function useKaraokeController(state: AppState, queue: QueueItem[], active
         setToast(reason)
         setTimeout(() => setToast(''), 5000)
       }
-      await finishCurrent(queueRef.current.length > 0)
+      await finishCurrent(queueRef.current.length > 0, kind)
     } catch (e) {
       console.error(e)
     } finally {
@@ -45,10 +45,10 @@ export function useKaraokeController(state: AppState, queue: QueueItem[], active
         if (s.nowPlaying) return
         if (s.playerStatus === 'between') {
           if (q.length === 0) await patchState({ playerStatus: 'idle', betweenEndsAt: null })
-          else if (!s.betweenEndsAt) await patchState({ betweenEndsAt: nowMs + BETWEEN_MS })
+          else if (!s.betweenEndsAt) await patchState({ betweenEndsAt: nowMs + BETWEEN_BY_KIND[kind] })
           else if (nowMs >= s.betweenEndsAt) await startNextSong(q[0])
         } else if (q.length > 0) {
-          await beginBetween()
+          await beginBetween(kind)
         } else if (s.playerStatus !== 'idle') {
           await patchState({ playerStatus: 'idle', betweenEndsAt: null })
         }
@@ -59,7 +59,7 @@ export function useKaraokeController(state: AppState, queue: QueueItem[], active
       }
     }, 500)
     return () => clearInterval(t)
-  }, [active])
+  }, [active, kind])
 
   // "salta": l'admin incrementa skipNonce
   const skipRef = useRef(state.skipNonce)
