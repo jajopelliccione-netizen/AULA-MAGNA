@@ -180,3 +180,25 @@ export function useServerClock(): () => number {
   }, [user])
   return useCallback(() => Date.now() + offset.current, [])
 }
+
+/**
+ * true = i dati che vedi arrivano dal server in tempo reale.
+ * false = sei offline o Firestore sta mostrando dati in cache (potrebbero essere vecchi).
+ */
+export function useLive(): boolean {
+  const [online, setOnline] = useState(() => navigator.onLine)
+  const [fromCache, setFromCache] = useState(true)
+  useEffect(() => {
+    const on = () => setOnline(true)
+    const off = () => setOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    const unsub = onSnapshot(doc(db, 'state/current'), { includeMetadataChanges: true }, (s) => setFromCache(s.metadata.fromCache), () => setFromCache(true))
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+      unsub()
+    }
+  }, [])
+  return online && !fromCache
+}

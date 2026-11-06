@@ -8,8 +8,10 @@ import {
   addManualSong, banNickname, removeFromQueue, reorderQueue, requestSkip, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
 } from '../../lib/actions'
 import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
+import { useAct } from './act'
 
 export default function KaraokeAdmin({ state, queue, presence, banned }: { state: AppState; queue: QueueItem[]; presence: PresenceDoc[]; banned: BannedDoc[] }) {
+  const act = useAct()
   const np = state.nowPlaying
   const [vol, setVol] = useState(state.volume)
   const volTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -17,7 +19,7 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
   const changeVol = (v: number) => {
     setVol(v)
     clearTimeout(volTimer.current)
-    volTimer.current = setTimeout(() => setVolume(v), 250)
+    volTimer.current = setTimeout(() => act(`ha messo il volume a ${v}`, () => setVolume(v)), 400)
   }
 
   const sensors = useSensors(
@@ -32,7 +34,7 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
     const from = queue.findIndex((q) => q.id === active.id)
     const to = queue.findIndex((q) => q.id === over.id)
     if (from < 0 || to < 0) return
-    reorderQueue(queue, arrayMove(queue, from, to)).catch((err) => alert('Errore nel riordino: ' + err.message))
+    Promise.resolve(act('ha riordinato la coda', () => reorderQueue(queue, arrayMove(queue, from, to)))).catch((err) => alert('Errore nel riordino: ' + err.message))
   }
 
   return (
@@ -57,11 +59,11 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
 
           <div className="grid grid-cols-2 gap-2">
             {state.playerStatus === 'paused' ? (
-              <button className="btn btn-success py-3" disabled={!np} onClick={() => setPlayerStatus('playing')}><Play className="w-4 h-4" fill="currentColor" /> Riprendi</button>
+              <button className="btn btn-success py-3" disabled={!np} onClick={() => act('ha ripreso il video', () => setPlayerStatus('playing'))}><Play className="w-4 h-4" fill="currentColor" /> Riprendi</button>
             ) : (
-              <button className="btn btn-secondary py-3" disabled={!np} onClick={() => setPlayerStatus('paused')}><Pause className="w-4 h-4" fill="currentColor" /> Pausa</button>
+              <button className="btn btn-secondary py-3" disabled={!np} onClick={() => act('ha messo in pausa il video', () => setPlayerStatus('paused'))}><Pause className="w-4 h-4" fill="currentColor" /> Pausa</button>
             )}
-            <button className="btn btn-danger py-3" disabled={!np && state.playerStatus !== 'between'} onClick={() => requestSkip()}><SkipForward className="w-4 h-4" fill="currentColor" /> Salta</button>
+            <button className="btn btn-danger py-3" disabled={!np && state.playerStatus !== 'between'} onClick={() => act('ha saltato la canzone', () => requestSkip())}><SkipForward className="w-4 h-4" fill="currentColor" /> Salta</button>
           </div>
 
           <label className="flex items-center gap-3">
@@ -79,14 +81,14 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
           <h2 className="eyebrow text-xs mb-2">Impostazioni</h2>
           <Switch
             on={state.bookingsOpen}
-            onChange={setBookingsOpen}
+            onChange={(v) => act(v ? 'ha aperto le prenotazioni' : 'ha chiuso le prenotazioni', () => setBookingsOpen(v))}
             icon={state.bookingsOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
             title="Prenotazioni aperte"
             hint={state.bookingsOpen ? 'I ragazzi possono prenotare' : 'Prenotazioni bloccate'}
           />
           <Switch
             on={state.gobboAudio}
-            onChange={setGobboAudio}
+            onChange={(v) => act(v ? 'ha attivato l’audio sul gobbo' : 'ha spento l’audio sul gobbo', () => setGobboAudio(v))}
             icon={<Captions className="w-5 h-5" />}
             title="Audio anche sul gobbo"
             hint="Di norma l’audio esce solo dallo schermo del proiettore"
@@ -137,6 +139,7 @@ function Switch({ on, onChange, icon, title, hint }: { on: boolean; onChange: (v
 }
 
 function Row({ item, index, presence, queue }: { item: QueueItem; index: number; presence: PresenceDoc[]; queue: QueueItem[] }) {
+  const act = useAct()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   return (
     <li
@@ -151,15 +154,16 @@ function Row({ item, index, presence, queue }: { item: QueueItem; index: number;
         <div className="font-bold truncate">{item.nickname}{item.uid === 'manual' && <span className="ml-2 chip !py-0 !text-[.65rem]">admin</span>}</div>
         <div className="text-xs text-muted truncate">{item.title}</div>
       </div>
-      <button className="btn btn-icon" title="Elimina" onClick={() => removeFromQueue(item.id)}><Trash2 className="w-4 h-4" /></button>
+      <button className="btn btn-icon" title="Elimina" onClick={() => act(`ha tolto «${item.nickname}» dalla coda`, () => removeFromQueue(item.id))}><Trash2 className="w-4 h-4" /></button>
       {item.uid !== 'manual' && (
-        <button className="btn btn-icon btn-danger" title="Banna nickname" onClick={() => confirm(`Bannare "${item.nickname}"?`) && banNickname(item.nickname, presence, queue)}><Ban className="w-4 h-4" /></button>
+        <button className="btn btn-icon btn-danger" title="Banna nickname" onClick={() => confirm(`Bannare "${item.nickname}"?`) && act(`ha bannato «${item.nickname}»`, () => banNickname(item.nickname, presence, queue))}><Ban className="w-4 h-4" /></button>
       )}
     </li>
   )
 }
 
 function AddSong() {
+  const act = useAct()
   const [link, setLink] = useState('')
   const [title, setTitle] = useState('')
   const [who, setWho] = useState('')
@@ -173,7 +177,7 @@ function AddSong() {
     setErr('')
     try {
       const t = title.trim() || (await fetchVideoTitle(id)) || 'Video YouTube'
-      await addManualSong(id, t, who.trim() || 'Admin')
+      await act(`ha aggiunto «${t}» in coda`, () => addManualSong(id, t, who.trim() || 'Admin'))
       setLink(''); setTitle(''); setWho('')
     } catch (ex) {
       setErr((ex as Error).message)
@@ -194,6 +198,7 @@ function AddSong() {
 }
 
 function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: QueueItem[]; banned: BannedDoc[] }) {
+  const act = useAct()
   const [nick, setNick] = useState('')
   const nickBans = banned.filter((b) => !b.uid)
   const deviceBans = banned.filter((b) => b.uid)
@@ -204,7 +209,7 @@ function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: Q
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          if (nick.trim()) banNickname(nick.trim(), presence, queue).then(() => setNick(''))
+          if (nick.trim()) Promise.resolve(act(`ha bannato «${nick.trim()}»`, () => banNickname(nick.trim(), presence, queue))).then(() => setNick(''))
         }}
       >
         <input className="input" placeholder="Nickname da bannare" value={nick} onChange={(e) => setNick(e.target.value)} list="online-nicks" />
@@ -214,7 +219,7 @@ function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: Q
       <div className="flex flex-wrap gap-2">
         {nickBans.length === 0 && <span className="text-muted text-sm">Nessun ban attivo</span>}
         {nickBans.map((b) => (
-          <button key={b.id} className="chip border-bad/40 bg-bad/10 text-[#ff9aab] hover:bg-bad/20" title="Clicca per togliere il ban" onClick={() => confirm(`Togliere il ban a "${b.nickname}"?`) && unbanAll(b, banned)}>
+          <button key={b.id} className="chip border-bad/40 bg-bad/10 text-[#ff9aab] hover:bg-bad/20" title="Clicca per togliere il ban" onClick={() => confirm(`Togliere il ban a "${b.nickname}"?`) && act(`ha tolto il ban a «${b.nickname}»`, () => unbanAll(b, banned))}>
             <Ban className="w-3 h-3" /> {b.nickname} <span className="opacity-60">✕</span>
           </button>
         ))}

@@ -135,6 +135,14 @@ così nessuno può crearsi un account con email e password.
    7. **Rivela**: animazione con numero e nome dell'impostore e la parola. Per ripartire con gli stessi giocatori basta di nuovo **Nuova partita** («Svuota lobby» li rimuove tutti).
    Nel gioco lo schermo mostra solo numeri (mai nickname) così nessuno è riconoscibile dal nome; i nickname li vede solo l'admin.
 
+## Più admin insieme
+
+Il pannello è sempre in tempo reale su qualsiasi dispositivo: se un admin aggiunge una canzone, cambia modalità, fa avanzare il giro dell'impostore o cambia le impostazioni di «Nuova partita», tutti gli altri pannelli (e schermi e telefoni) lo vedono subito.
+- In alto c'è il **tuo nome** (salvato sul dispositivo): quando fai un'azione gli altri admin vedono un avviso a comparsa, tipo «Marco ha aggiunto «Albachiara» in coda», e il pulsante **Attività** mostra l'elenco delle ultime azioni di tutti.
+- L'indicatore **In tempo reale / Offline** avvisa se un dispositivo ha perso la connessione (e i dati potrebbero essere vecchi): si ricollega da solo.
+- Se esce una nuova versione del sito compare «Aggiorna» (admin e telefoni); proiettore e gobbo si ricaricano da soli appena non c'è un brano o una partita in corso.
+- Se due admin premono lo stesso tasto insieme (es. «Prossimo») il giocatore avanza una volta sola.
+
 ## Parole: niente ripetizioni
 
 Ogni parola ricorda quando è uscita l'ultima volta (la memoria sta in `impostor/private`, leggibile solo dall'admin, e si pulisce da sola dopo 7 giorni):

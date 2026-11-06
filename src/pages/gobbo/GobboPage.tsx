@@ -6,6 +6,7 @@ import { Logo } from '../../components/Logo'
 import { useAppState, useNow, useQueue, useServerClock } from '../../lib/hooks'
 import { CountdownRing } from '../screen/KaraokeStage'
 import { BRAND } from '../../lib/brand'
+import { useOutdated } from '../../lib/version'
 import { useEffect } from 'react'
 
 export default function GobboPage() {
@@ -23,6 +24,11 @@ function GobboInner() {
   const { queue } = useQueue()
   const serverNow = useServerClock()
   const now = useNow(100)
+  const outdated = useOutdated()
+  const idle = !state.nowPlaying && state.playerStatus !== 'between'
+  useEffect(() => {
+    if (outdated && idle) window.location.reload()
+  }, [outdated, idle])
 
   useEffect(() => {
     document.body.style.cursor = started ? 'none' : ''

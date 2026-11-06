@@ -4,6 +4,8 @@ import { db } from '../../lib/firebase'
 import { useAnonymousSignIn } from '../../lib/auth'
 import { useAppState, useDoc, HEARTBEAT_MS } from '../../lib/hooks'
 import { heartbeat } from '../../lib/actions'
+import { useOutdated } from '../../lib/version'
+import { UpdateBanner } from '../../components/UpdateBanner'
 import { validateNickname } from '../../lib/profanity'
 import { nicknameKey } from '../../lib/util'
 import { ArrowRight, Ban, Gamepad2, Mic, Pause, User } from 'lucide-react'
@@ -33,6 +35,11 @@ export default function PhonePage() {
   const isBanned = Boolean(bannedByUid.data.nickname || bannedByNick.data.nickname)
 
   const { data: state } = useAppState(ready && !!nick && !isBanned)
+  const outdated = useOutdated()
+  // nuova versione: se il telefono è in attesa (lobby o pausa) si aggiorna da solo, altrimenti compare un avviso
+  useEffect(() => {
+    if (outdated && (state.mode === 'lobby' || state.mode === 'pause')) window.location.reload()
+  }, [outdated, state.mode])
 
   // presenza: battito ogni minuto finché la pagina è visibile
   useEffect(() => {
@@ -66,6 +73,7 @@ export default function PhonePage() {
   return (
     <Shell
       nick={nick}
+      showUpdate={outdated}
       onChangeNick={() => {
         try { localStorage.removeItem(NICK_KEY) } catch { /* ok */ }
         setNick('')
@@ -94,7 +102,7 @@ export default function PhonePage() {
   )
 }
 
-function Shell({ children, nick, onChangeNick }: { children: React.ReactNode; nick?: string; onChangeNick?: () => void }) {
+function Shell({ children, nick, onChangeNick, showUpdate = false }: { children: React.ReactNode; nick?: string; onChangeNick?: () => void; showUpdate?: boolean }) {
   return (
     <div className="min-h-full bg-stage flex flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 px-4 py-2.5 bg-ink/75 backdrop-blur-xl border-b border-line pt-[max(0.6rem,env(safe-area-inset-top))]">
@@ -107,6 +115,7 @@ function Shell({ children, nick, onChangeNick }: { children: React.ReactNode; ni
         )}
       </header>
       <main className="flex-1 flex flex-col w-full max-w-lg mx-auto">{children}</main>
+      {showUpdate && <UpdateBanner />}
     </div>
   )
 }

@@ -21,6 +21,20 @@ export interface SyncInfo {
   pos: number
 }
 
+/** Impostazioni "Nuova partita" condivise fra tutti i pannelli admin. */
+export interface ImpostorConfig {
+  categoryId: string
+  impostors: number
+  readingSec: number
+}
+
+/** Ultima azione fatta da un admin: serve a mostrare agli altri "chi ha fatto cosa". */
+export interface LastAction {
+  by: string
+  text: string
+  at: number
+}
+
 export interface AppState {
   mode: Mode
   message: string
@@ -32,6 +46,8 @@ export interface AppState {
   skipNonce: number
   gobboAudio: boolean
   sync: SyncInfo | null
+  impostorConfig: ImpostorConfig
+  lastAction: LastAction | null
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -45,6 +61,8 @@ export const DEFAULT_STATE: AppState = {
   skipNonce: 0,
   gobboAudio: false,
   sync: null,
+  impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 },
+  lastAction: null,
 }
 
 export interface QueueItem {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Play, RotateCcw, RotateCw, UserX, Vote } from 'lucide-react'
-import type { Game, PlayerDoc } from '../../lib/types'
+import type { Game, ImpostorConfig, PlayerDoc } from '../../lib/types'
+import { useAct } from './act'
 import { expelPlayer, moveTurn, nextGiro, resetLobby, resetWordHistory, revealRound, startRound, startTurns, startVoting } from '../../lib/actions'
 import { CATEGORIES, RANDOM_CATEGORY_ID, availability, type WordHistory } from '../../lib/words'
 import { useDoc } from '../../lib/hooks'
@@ -13,10 +14,13 @@ const STATUS_LABEL: Record<Game['status'], string> = {
   reveal: 'Rivelato',
 }
 
-export default function ImpostorAdmin({ game, players, serverNow }: { game: Game; players: PlayerDoc[]; serverNow: () => number }) {
-  const [categoryId, setCategoryId] = useState(RANDOM_CATEGORY_ID)
-  const [impostors, setImpostors] = useState(1)
-  const [readingSec, setReadingSec] = useState(8)
+export default function ImpostorAdmin({ game, players, serverNow, config, onConfig }: { game: Game; players: PlayerDoc[]; serverNow: () => number; config: ImpostorConfig; onConfig: (c: ImpostorConfig) => void }) {
+  const act = useAct()
+  // le impostazioni sono condivise: se le cambia un altro admin le vedi cambiare qui
+  const { categoryId, impostors, readingSec } = config
+  const setCategoryId = (categoryId: string) => onConfig({ ...config, categoryId })
+  const setImpostors = (impostors: number) => onConfig({ ...config, impostors })
+  const setReadingSec = (readingSec: number) => onConfig({ ...config, readingSec })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
@@ -57,7 +61,7 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
 
             <p className="text-xs text-muted -mt-2 flex items-center justify-between gap-2">
               <span>Parole disponibili ora: <b className="text-white">{avail.free}</b> su {avail.total}{avail.free < avail.total && ' (le altre sono uscite da poco)'}</span>
-              <button className="underline underline-offset-2 hover:text-white" onClick={() => confirm('Azzerare la memoria delle parole uscite? Tutte torneranno disponibili.') && run(resetWordHistory)}>Azzera</button>
+              <button className="underline underline-offset-2 hover:text-white" onClick={() => confirm('Azzerare la memoria delle parole uscite? Tutte torneranno disponibili.') && run(() => act('ha azzerato la memoria delle parole', resetWordHistory))}>Azzera</button>
             </p>
 
             <div className="flex flex-col gap-1.5">
@@ -81,7 +85,7 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
             <button
               className="btn btn-success py-3.5 text-base"
               disabled={busy || players.length < 3}
-              onClick={() => run(() => startRound({ categoryId, impostors, readingSec }, serverNow()))}
+              onClick={() => run(() => act('ha avviato una nuova partita', () => startRound({ categoryId, impostors, readingSec }, serverNow())))}
             ><Play className="w-4 h-4" fill="currentColor" /> Nuova partita</button>
             {players.length < 3 && <p className="text-warn text-sm rounded-xl bg-warn/10 border border-warn/30 px-3 py-2">Servono almeno 3 giocatori entrati dal telefono.</p>}
           </>
@@ -91,7 +95,7 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
         {game.status === 'reading' && (
           <>
             <p className="text-sm text-muted">La parola è sui telefoni per <b className="text-white">{game.readingSec} secondi</b>, poi compare il numero. Categoria: <b className="text-white">{game.category}</b>.</p>
-            <button className="btn btn-primary py-3.5 text-base" disabled={busy} onClick={() => run(startTurns)}><Play className="w-4 h-4" fill="currentColor" /> Inizia il 1° giro</button>
+            <button className="btn btn-primary py-3.5 text-base" disabled={busy} onClick={() => run(() => act('ha iniziato il primo giro', startTurns))}><Play className="w-4 h-4" fill="currentColor" /> Inizia il 1° giro</button>
           </>
         )}
 
@@ -110,22 +114,22 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button className="btn py-3.5" disabled={busy || game.turnIndex <= 0} onClick={() => run(() => moveTurn(game, -1))}><ChevronLeft className="w-5 h-5" /> Indietro</button>
-              <button className="btn btn-primary py-3.5" disabled={busy || finished} onClick={() => run(() => moveTurn(game, 1))}>Prossimo <ChevronRight className="w-5 h-5" /></button>
+              <button className="btn py-3.5" disabled={busy || game.turnIndex <= 0} onClick={() => run(() => act('è tornato al giocatore precedente', () => moveTurn(game, -1)))}><ChevronLeft className="w-5 h-5" /> Indietro</button>
+              <button className="btn btn-primary py-3.5" disabled={busy || finished} onClick={() => run(() => act(`ha chiamato il giocatore successivo`, () => moveTurn(game, 1)))}>Prossimo <ChevronRight className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button className={`btn py-3.5 ${finished ? 'btn-success' : ''}`} disabled={busy} onClick={() => run(() => nextGiro(game.giro))}><RotateCw className="w-4 h-4" /> Altro giro</button>
-              <button className="btn btn-secondary py-3.5" disabled={busy} onClick={() => run(startVoting)}><Vote className="w-4 h-4" /> Avvia voto</button>
+              <button className={`btn py-3.5 ${finished ? 'btn-success' : ''}`} disabled={busy} onClick={() => run(() => act(`ha avviato il giro ${game.giro + 1}`, () => nextGiro(game.giro)))}><RotateCw className="w-4 h-4" /> Altro giro</button>
+              <button className="btn btn-secondary py-3.5" disabled={busy} onClick={() => run(() => act('ha avviato il voto', startVoting))}><Vote className="w-4 h-4" /> Avvia voto</button>
             </div>
           </>
         )}
 
         {/* ---------- voto / reveal ---------- */}
         {game.status === 'voting' && (
-          <button className="btn btn-primary py-3.5 text-base" disabled={busy} onClick={() => run(revealRound)}><Eye className="w-4 h-4" /> Rivela</button>
+          <button className="btn btn-primary py-3.5 text-base" disabled={busy} onClick={() => run(() => act('ha rivelato l’impostore', revealRound))}><Eye className="w-4 h-4" /> Rivela</button>
         )}
         {(game.status === 'turns' || game.status === 'reading') && (
-          <button className="btn btn-danger py-2.5 text-sm" disabled={busy} onClick={() => confirm('Rivelare subito impostore e parola?') && run(revealRound)}><Eye className="w-4 h-4" /> Rivela subito</button>
+          <button className="btn btn-danger py-2.5 text-sm" disabled={busy} onClick={() => confirm('Rivelare subito impostore e parola?') && run(() => act('ha rivelato l’impostore', revealRound))}><Eye className="w-4 h-4" /> Rivela subito</button>
         )}
 
         {err && <p className="text-bad text-sm">{err}</p>}
@@ -139,7 +143,7 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
       <section className="lg:col-span-3 card p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="display text-white text-2xl">Giocatori <span className="text-muted">({players.length})</span></h2>
-          <button className="btn text-sm py-2 px-3" disabled={busy} onClick={() => confirm('Svuotare la lobby e rimuovere tutti i giocatori?') && run(resetLobby)}><RotateCcw className="w-4 h-4" /> Svuota lobby</button>
+          <button className="btn text-sm py-2 px-3" disabled={busy} onClick={() => confirm('Svuotare la lobby e rimuovere tutti i giocatori?') && run(() => act('ha svuotato la lobby', resetLobby))}><RotateCcw className="w-4 h-4" /> Svuota lobby</button>
         </div>
         {players.length === 0 && <p className="text-muted text-sm rounded-xl bg-white/[.04] border border-line px-4 py-6 text-center">Nessun giocatore: devono premere «Entra nella partita» dal telefono.</p>}
         <ul className="grid sm:grid-cols-2 gap-2">
@@ -155,7 +159,7 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
                     <span className={`text-xs ${p.vote ? 'text-good' : 'text-muted'}`}>{p.vote ? 'ha votato' : '…'}</span>
                   </>
                 )}
-                <button className="btn btn-icon btn-danger" title="Espelli" onClick={() => confirm(`Espellere ${p.nickname}?`) && run(() => expelPlayer(p.id))}><UserX className="w-4 h-4" /></button>
+                <button className="btn btn-icon btn-danger" title="Espelli" onClick={() => confirm(`Espellere ${p.nickname}?`) && run(() => act(`ha espulso ${p.nickname}`, () => expelPlayer(p.id)))}><UserX className="w-4 h-4" /></button>
               </li>
             )
           })}

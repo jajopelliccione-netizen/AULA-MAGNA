@@ -5,7 +5,7 @@ import {
 import { db } from './firebase'
 import { nicknameKey, shuffle } from './util'
 import { pickWord, recordWord, type WordHistory } from './words'
-import type { Game, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
+import type { Game, ImpostorConfig, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
 
 /* ------------------------------ ragazzi ------------------------------ */
 
@@ -40,6 +40,8 @@ export const setPauseMessage = (message: string) => patchState({ message })
 export const setVolume = (volume: number) => patchState({ volume })
 export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsOpen })
 export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState({ playerStatus })
+export const setImpostorConfig = (config: ImpostorConfig) => patchState({ impostorConfig: config })
+export const logAction = (by: string, text: string, at: number) => patchState({ lastAction: { by, text, at } })
 export const setGobboAudio = (gobboAudio: boolean) => patchState({ gobboAudio })
 export const publishSync = (sync: SyncInfo | null) => patchState({ sync })
 export const requestSkip = () => patchState({ skipNonce: increment(1) })
@@ -276,6 +278,7 @@ export async function ensureInitialDocs() {
     await setDoc(stateRef(), {
       mode: 'lobby', message: 'Torniamo subito!', nowPlaying: null, playerStatus: 'idle',
       bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, gobboAudio: false, sync: null,
+      impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 }, lastAction: null,
     })
   }
   const g = await getDoc(gameRef())

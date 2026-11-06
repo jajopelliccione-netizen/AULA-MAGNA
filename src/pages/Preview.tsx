@@ -50,7 +50,7 @@ export default function Preview() {
     case 'p-voting': return <div className="min-h-screen bg-stage flex flex-col"><VotingView uid="p0" me="p2" myNumber={1} players={players} /></div>
     case 'call': return <CallOverlay title="Vasco Rossi - Albachiara (Karaoke Version)" onClose={() => {}} />
     case 'a-karaoke': return <div className="min-h-screen bg-stage p-6"><div className="max-w-6xl mx-auto"><div className="mb-5"><BrandTitle /></div><KaraokeAdmin presence={[]} banned={[{ id: 'x', nickname: 'Troll', createdAt: 1 }]} queue={queue} state={st({ playerStatus: 'playing', nowPlaying: { queueId: 'x', videoId: 'dQw4w9WgXcQ', title: 'Vasco Rossi - Albachiara (Karaoke Version)', nickname: 'Giulia', uid: 'u1', bookedAt: 1, startedAt: 1 } })} /></div></div>
-    case 'a-impostor': return <div className="min-h-screen bg-stage p-6"><div className="max-w-6xl mx-auto"><ImpostorAdmin serverNow={clock} game={baseGame} players={players} /></div></div>
+    case 'a-impostor': return <div className="min-h-screen bg-stage p-6"><div className="max-w-6xl mx-auto"><ImpostorAdmin serverNow={clock} game={baseGame} players={players} config={{ categoryId: 'random', impostors: 1, readingSec: 8 }} onConfig={() => {}} /></div></div>
     default: return <div className="p-6">Anteprime: start, lobby, pause, k-playing, k-between, k-empty, i-lobby, i-reading, i-turns, i-turns-end, i-voting, i-reveal, gobbo-between, call, a-karaoke, a-impostor</div>
   }
 }
