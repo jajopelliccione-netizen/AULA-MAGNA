@@ -86,8 +86,13 @@ export default function SongView({ uid, nick, state, kind }: { uid: string; nick
       setResults([])
       setQ('')
       setSent(true)
-    } catch {
-      setErr('Non sono riuscito a inviare la richiesta: le richieste potrebbero essere chiuse o ne hai già una')
+    } catch (ex) {
+      const code = (ex as { code?: string }).code ?? ''
+      setErr(
+        code === 'permission-denied'
+          ? `Richiesta non accettata dal server (${code}): le richieste potrebbero essere chiuse, oppure l'admin deve aggiornare le regole di Firestore.`
+          : `Non sono riuscito a inviare la richiesta${code ? ` (${code})` : ''}. Controlla la connessione e riprova.`,
+      )
     } finally {
       setBooking(null)
     }
