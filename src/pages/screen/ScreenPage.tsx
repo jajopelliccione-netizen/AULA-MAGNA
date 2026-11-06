@@ -42,7 +42,7 @@ function ScreenInner() {
       <KaraokeStage state={state} queue={queue} active={state.mode === 'karaoke'} serverNow={serverNow} />
       {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} /></div>}
       {state.mode === 'pause' && <div className="absolute inset-0"><PauseScreen message={state.message} /></div>}
-      {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} /></div>}
+      {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} serverNow={serverNow} /></div>}
     </div>
   )
 }

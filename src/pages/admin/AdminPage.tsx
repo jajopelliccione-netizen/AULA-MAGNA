@@ -4,7 +4,7 @@ import { Captions, Home, LogOut, Mic, Monitor, Pause, VenetianMask } from 'lucid
 import { auth } from '../../lib/firebase'
 import { StaffGate } from '../../components/StaffGate'
 import { BrandTitle } from '../../components/Logo'
-import { useAppState, useBanned, useGame, usePlayers, usePresence, useQueue } from '../../lib/hooks'
+import { useAppState, useBanned, useGame, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { ensureInitialDocs, setMode, setPauseMessage } from '../../lib/actions'
 import type { Mode } from '../../lib/types'
 import KaraokeAdmin from './KaraokeAdmin'
@@ -32,6 +32,7 @@ function AdminInner() {
   const { players } = usePlayers()
   const { online, count } = usePresence()
   const banned = useBanned()
+  const serverNow = useServerClock()
   const [msg, setMsg] = useState('')
   const [msgDirty, setMsgDirty] = useState(false)
   const [tab, setTab] = useState<'karaoke' | 'impostor'>('karaoke')
@@ -109,7 +110,7 @@ function AdminInner() {
         {tab === 'karaoke' ? (
           <KaraokeAdmin state={state} queue={queue} presence={online} banned={banned} />
         ) : (
-          <ImpostorAdmin game={game} players={players} />
+          <ImpostorAdmin game={game} players={players} serverNow={serverNow} />
         )}
       </main>
     </div>

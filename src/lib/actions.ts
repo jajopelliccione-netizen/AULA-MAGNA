@@ -5,7 +5,7 @@ import {
 import { db } from './firebase'
 import { nicknameKey, shuffle } from './util'
 import { pickWord } from './words'
-import type { Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
+import type { Game, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
 
 /* ------------------------------ ragazzi ------------------------------ */
 
@@ -140,15 +140,26 @@ export const unban = (id: string) => deleteDoc(doc(db, 'banned', id))
 
 const gameRef = () => doc(db, 'impostor/game')
 
-export async function startRound(opts: { categoryId: string; impostors: number; discussionSec: number }) {
+export interface RoundOptions {
+  categoryId: string
+  impostors: number
+  /** secondi in cui la parola resta visibile sui telefoni */
+  readingSec: number
+}
+
+/**
+ * Nuova partita: numera i giocatori a caso, assegna i ruoli (privati) e la parola.
+ * `nowMs` = ora del server (così il conto alla rovescia sullo schermo è giusto).
+ */
+export async function startRound(opts: RoundOptions, nowMs: number) {
   const playersSnap = await getDocs(collection(db, 'impostor/game/players'))
   const players = playersSnap.docs.map((d) => ({ uid: d.id, nickname: String(d.data().nickname ?? '???') }))
   if (players.length < 3) throw new Error('Servono almeno 3 giocatori collegati alla partita')
 
+  const numbered = shuffle(players).map((p, i) => ({ ...p, number: i + 1 }))
   const nImp = Math.max(1, Math.min(opts.impostors, players.length - 2))
   const { category, word } = pickWord(opts.categoryId)
-  const mixed = shuffle(players)
-  const impostors = mixed.slice(0, nImp)
+  const impostors = shuffle(numbered).slice(0, nImp)
   const impUids = new Set(impostors.map((p) => p.uid))
 
   const prev = await getDoc(gameRef())
@@ -158,9 +169,9 @@ export async function startRound(opts: { categoryId: string; impostors: number; 
   const oldRoles = await getDocs(collection(db, 'impostor/game/roles'))
   await commitChunks(oldRoles.docs.map((d) => (b: WriteBatch) => b.delete(d.ref)))
 
-  // 2) nuovi ruoli (privati) + reset voti
+  // 2) nuovi ruoli (privati) + numeri + reset voti
   const ops: ((b: WriteBatch) => void)[] = []
-  players.forEach((p) => {
+  numbered.forEach((p) => {
     const isImp = impUids.has(p.uid)
     ops.push((b) =>
       b.set(doc(db, 'impostor/game/roles', p.uid), {
@@ -170,13 +181,14 @@ export async function startRound(opts: { categoryId: string; impostors: number; 
         round,
       }),
     )
-    ops.push((b) => b.update(doc(db, 'impostor/game/players', p.uid), { vote: null }))
+    ops.push((b) => b.update(doc(db, 'impostor/game/players', p.uid), { vote: null, number: p.number }))
   })
   ops.push((b) =>
     b.set(doc(db, 'impostor/private'), {
       word,
       impostorUids: [...impUids],
       impostorNames: impostors.map((p) => p.nickname),
+      impostorNumbers: impostors.map((p) => p.number).sort((x, y) => x - y),
       round,
     }),
   )
@@ -184,17 +196,35 @@ export async function startRound(opts: { categoryId: string; impostors: number; 
 
   // 3) per ultimo il documento pubblico: i telefoni trovano già i ruoli pronti
   await setDoc(gameRef(), {
-    status: 'playing',
+    status: 'reading',
     category: category.label,
     categoryId: category.id,
     word: null,
     impostorUids: [],
     impostorNames: [],
-    endsAt: Date.now() + opts.discussionSec * 1000,
+    impostorNumbers: [],
+    endsAt: nowMs + opts.readingSec * 1000,
     round,
-    discussionSec: opts.discussionSec,
+    readingSec: opts.readingSec,
+    giro: 0,
+    order: [],
+    turnIndex: 0,
   })
 }
+
+async function newGiro(giro: number) {
+  const snap = await getDocs(collection(db, 'impostor/game/players'))
+  const numbers = snap.docs.map((d) => d.data().number as number | undefined).filter((n): n is number => typeof n === 'number')
+  await setDoc(gameRef(), { status: 'turns', giro, order: shuffle(numbers), turnIndex: 0, endsAt: null }, { merge: true })
+}
+
+/** Dopo la lettura della parola: parte il primo giro (ordine di parola casuale). */
+export const startTurns = () => newGiro(1)
+/** Giro concluso: l'admin ne fa fare un altro con un nuovo ordine. */
+export const nextGiro = (currentGiro: number) => newGiro(currentGiro + 1)
+/** Avanti / indietro di un giocatore nel giro. */
+export const moveTurn = (game: Game, delta: number) =>
+  setDoc(gameRef(), { turnIndex: Math.max(0, Math.min(game.order.length, game.turnIndex + delta)) }, { merge: true })
 
 export const startVoting = () => setDoc(gameRef(), { status: 'voting', endsAt: null }, { merge: true })
 
@@ -204,7 +234,7 @@ export async function revealRound() {
   if (!d) throw new Error('Nessuna partita in corso')
   await setDoc(
     gameRef(),
-    { status: 'reveal', word: d.word, impostorUids: d.impostorUids, impostorNames: d.impostorNames, endsAt: null },
+    { status: 'reveal', word: d.word, impostorUids: d.impostorUids, impostorNames: d.impostorNames, impostorNumbers: d.impostorNumbers ?? [], endsAt: null },
     { merge: true },
   )
 }
@@ -222,8 +252,8 @@ export async function resetLobby() {
   await commitChunks([...players.docs, ...roles.docs].map((d) => (b: WriteBatch) => b.delete(d.ref)))
   const prev = await getDoc(gameRef())
   await setDoc(gameRef(), {
-    status: 'lobby', category: '', categoryId: '', word: null, impostorUids: [], impostorNames: [],
-    endsAt: null, round: (prev.data()?.round as number | undefined) ?? 0, discussionSec: 180,
+    status: 'lobby', category: '', categoryId: '', word: null, impostorUids: [], impostorNames: [], impostorNumbers: [],
+    endsAt: null, round: (prev.data()?.round as number | undefined) ?? 0, readingSec: 8, giro: 0, order: [], turnIndex: 0,
   })
 }
 
@@ -239,8 +269,8 @@ export async function ensureInitialDocs() {
   const g = await getDoc(gameRef())
   if (!g.exists()) {
     await setDoc(gameRef(), {
-      status: 'lobby', category: '', categoryId: '', word: null, impostorUids: [], impostorNames: [],
-      endsAt: null, round: 0, discussionSec: 180,
+      status: 'lobby', category: '', categoryId: '', word: null, impostorUids: [], impostorNames: [], impostorNumbers: [],
+      endsAt: null, round: 0, readingSec: 8, giro: 0, order: [], turnIndex: 0,
     })
   }
 }

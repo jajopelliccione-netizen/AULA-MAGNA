@@ -125,7 +125,15 @@ così nessuno può crearsi un account con email e password.
 2. Dal telefono/PC admin apri `/admin` e scegli la modalità: **Lobby → Karaoke / Impostore → Pausa**.
 3. **Karaoke**: la coda avanza da sola (fine video → 10 secondi di "Prossimo" → parte il successivo). L'admin può mettere in pausa, saltare, regolare il volume, riordinare trascinando ⠿, eliminare, aggiungere a mano, bloccare le prenotazioni, bannare un nickname.
    Quando tocca a un ragazzo il suo telefono mostra a schermo intero **TOCCA A TE! Vai sul palco** (e vibra).
-4. **Impostore**: i ragazzi premono "Entra nella partita" → l'admin sceglie categoria (o casuale), impostori (1–3), durata → **Nuova partita** → **Avvia voto** → **Rivela**. Per un altro giro basta di nuovo **Nuova partita** (restano gli stessi giocatori; "Svuota lobby" li rimuove). Gli impostori vedono "SEI L'IMPOSTORE" + categoria, gli altri la parola, tenendo premuto.
+4. **Impostore** (a numeri e a giri):
+   1. I ragazzi premono **Entra nella partita**.
+   2. L'admin sceglie categoria (o casuale), numero di impostori (1–3) e i secondi di lettura (5/8/10/15), poi **Nuova partita**: ogni giocatore riceve un **numero a caso** («Giocatore 7»).
+   3. Sul telefono compare la parola (agli impostori «SEI L'IMPOSTORE» + categoria) per i secondi scelti, poi sparisce e resta **solo il numero**. Lo schermo mostra il conto alla rovescia.
+   4. L'admin preme **Inizia il 1° giro**: i giocatori vengono chiamati uno alla volta in ordine casuale. Lo schermo mostra «Ora parla il Giocatore N»; sul telefono di chi tocca compare **«Tocca a te!»** (e vibra). Va davanti a tutti, **dice la sua parola e mostra il numero** sul telefono. L'admin passa al giocatore dopo con **Prossimo** (o torna con **Indietro**).
+   5. A giro concluso lo schermo lo dice: se i ragazzi vogliono continuare l'admin preme **Altro giro** (nuovo ordine casuale, stessi numeri), altrimenti **Avvia voto**.
+   6. Ognuno **vota dal telefono scegliendo un numero**; sullo schermo le barre dei voti si aggiornano in diretta.
+   7. **Rivela**: animazione con numero e nome dell'impostore e la parola. Per ripartire con gli stessi giocatori basta di nuovo **Nuova partita** («Svuota lobby» li rimuove tutti).
+   Nel gioco lo schermo mostra solo numeri (mai nickname) così nessuno è riconoscibile dal nome; i nickname li vede solo l'admin.
 
 ## Brand e logo
 
@@ -138,4 +146,4 @@ Per cambiarlo sostituisci il file (stesso nome) oppure modifica `BRAND.logo`. I 
 - **Rete scolastica**: Firestore usa il long-polling automatico se i WebSocket sono bloccati.
 - **Velocità del telefono**: la pagina `/` è un bundle piccolo; `/schermo`, `/admin`, il QR code e il drag&drop vengono caricati solo sulle loro pagine.
 - **Filtro parolacce**: `src/lib/profanity.ts` (gestisce anche scritture tipo `c4zz0`); i titoli YouTube volgari non vengono mostrati né prenotabili.
-- **Struttura dati**: `state/current`, `queue/{id}`, `impostor/game`, `impostor/game/players/{uid}`, `impostor/game/roles/{uid}` (privato), `impostor/private` (admin), `presence/{uid}`, `banned/{id}`.
+- **Struttura dati**: `state/current`, `queue/{id}`, `impostor/game`, `impostor/game/players/{uid}` (nickname, numero, voto), `impostor/game/roles/{uid}` (privato), `impostor/private` (admin), `presence/{uid}`, `banned/{id}`.

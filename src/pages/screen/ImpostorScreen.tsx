@@ -1,16 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Timer, Users, Vote, VenetianMask } from 'lucide-react'
+import { Check, Hourglass, Megaphone, RotateCw, Users, Vote, VenetianMask } from 'lucide-react'
 import type { Game, PlayerDoc } from '../../lib/types'
 import { useNow } from '../../lib/hooks'
-import { fmtClock } from '../../lib/util'
 import { QR, shortUrl } from './QR'
 import { Logo } from '../../components/Logo'
 import { BRAND } from '../../lib/brand'
 
-export default function ImpostorScreen({ game, players }: { game: Game; players: PlayerDoc[] }) {
+export default function ImpostorScreen({ game, players, serverNow }: { game: Game; players: PlayerDoc[]; serverNow: () => number }) {
   if (game.status === 'reveal') return <Reveal key={game.round} game={game} players={players} />
   if (game.status === 'voting') return <Voting players={players} />
-  if (game.status === 'playing') return <Discussion game={game} players={players} />
+  if (game.status === 'turns') return <Turns game={game} />
+  if (game.status === 'reading') return <Reading game={game} serverNow={serverNow} />
   return <LobbyI players={players} />
 }
 
@@ -36,16 +36,6 @@ function Frame({ phase, icon, right, children }: { phase: string; icon: ReactNod
   )
 }
 
-function Names({ players }: { players: PlayerDoc[] }) {
-  return (
-    <div className="flex flex-wrap gap-[.9vw] content-start">
-      {players.map((p) => (
-        <span key={p.id} className="card text-[2vw] font-bold px-[1.4vw] py-[.7vh] anim-slide">{p.nickname}</span>
-      ))}
-    </div>
-  )
-}
-
 function LobbyI({ players }: { players: PlayerDoc[] }) {
   return (
     <Frame phase="Entrate in partita" icon={<Users />} right={<QR size={Math.round(window.innerHeight * 0.26)} />}>
@@ -55,28 +45,83 @@ function LobbyI({ players }: { players: PlayerDoc[] }) {
           <span className="display text-white text-[3vw] pb-[1.2vh]">{players.length === 1 ? 'giocatore' : 'giocatori'}</span>
         </div>
         <p className="text-[1.8vw] text-muted">Apri <b className="text-ice">{shortUrl()}</b> e premi <b className="text-white">Entra nella partita</b></p>
-        <Names players={players} />
+        <div className="flex flex-wrap gap-[.9vw] content-start">
+          {players.map((p) => <span key={p.id} className="card text-[2vw] font-bold px-[1.4vw] py-[.7vh] anim-slide">{p.nickname}</span>)}
+        </div>
       </div>
     </Frame>
   )
 }
 
-function Discussion({ game, players }: { game: Game; players: PlayerDoc[] }) {
-  const now = useNow(250)
-  const left = game.endsAt ? game.endsAt - now : 0
-  const low = left <= 30000
+/** Fase 1: i giocatori leggono la parola sul telefono. */
+function Reading({ game, serverNow }: { game: Game; serverNow: () => number }) {
+  const now = useNow(200)
+  void now
+  const left = game.endsAt ? Math.max(0, game.endsAt - serverNow()) : 0
   return (
-    <Frame phase="Discussione" icon={<Timer />}>
-      <div className="h-full flex gap-[3vw]">
-        <div className="flex-1 card flex flex-col items-center justify-center gap-[2vh] text-center">
-          <div className="eyebrow text-[1.7vw]">Categoria</div>
-          <div className="display text-white text-[6.5vw]">{game.category}</div>
-          <div className={`display tabular text-[17vw] leading-none ${low ? 'text-bad anim-pulse' : 'grad-text'}`}>{left > 0 ? fmtClock(left) : '0:00'}</div>
-          <div className="text-[1.9vw] font-medium text-muted">{left > 0 ? 'Chi è l’impostore? Parlate!' : 'Tempo scaduto: si passa al voto'}</div>
+    <Frame phase="Leggete la parola" icon={<Hourglass />}>
+      <div className="h-full card flex flex-col items-center justify-center gap-[2.4vh] text-center">
+        <div className="eyebrow text-[1.7vw]">Categoria</div>
+        <div className="display text-white text-[8vw]">{game.category}</div>
+        <div className="display grad-text tabular text-[15vw] leading-none">{Math.ceil(left / 1000)}</div>
+        <div className="text-[2vw] font-medium text-muted">
+          {left > 0 ? 'Guardate il vostro telefono: la parola sparirà tra poco' : 'Ora ricordate il vostro numero. Si parte a breve'}
         </div>
-        <div className="w-[28vw] card p-[1.6vw] overflow-hidden flex flex-col gap-[1.6vh]">
-          <div className="eyebrow text-[1.2vw]">Giocatori · {players.length}</div>
-          <Names players={players} />
+      </div>
+    </Frame>
+  )
+}
+
+/** Fase 2: i giri. Si vede chi sta parlando e chi ha già parlato (solo numeri, niente nomi). */
+function Turns({ game }: { game: Game }) {
+  const n = game.order.length
+  const finished = game.turnIndex >= n
+  const current = finished ? null : game.order[game.turnIndex]
+  const sorted = [...game.order].sort((a, b) => a - b)
+  const state = (num: number) => {
+    const pos = game.order.indexOf(num)
+    return pos < game.turnIndex ? 'done' : pos === game.turnIndex ? 'now' : 'todo'
+  }
+  const cols = n > 20 ? 8 : n > 12 ? 6 : 5
+  return (
+    <Frame phase={`Giro ${game.giro}`} icon={<Megaphone />} right={<div className="chip text-[1.2vw]">{game.category}</div>}>
+      <div className="h-full flex gap-[2.5vw]">
+        <div className="flex-1 card flex flex-col items-center justify-center text-center gap-[2vh] px-[2vw]">
+          {finished ? (
+            <>
+              <RotateCw className="w-[7vw] h-[7vw] text-brand" strokeWidth={1.3} />
+              <div className="display text-white text-[6.5vw]">Giro {game.giro} concluso</div>
+              <div className="text-[2.2vw] text-muted max-w-[40vw]">Hanno parlato tutti. Decidete: un altro giro oppure si vota?</div>
+            </>
+          ) : (
+            <>
+              <div className="eyebrow text-[2vw]">Ora parla il</div>
+              <div className="display text-white text-[4.6vw] -mb-[2vh]">Giocatore</div>
+              <div key={current} className="display grad-text text-[26vw] leading-[.82] anim-pop">{current}</div>
+              <div className="text-[1.9vw] text-muted max-w-[40vw]">Vieni davanti, di’ la tua parola e mostra il numero sul telefono</div>
+              <div className="chip text-[1.3vw] !px-[1.2vw] !py-[.6vh]">{game.turnIndex + 1} / {n}</div>
+            </>
+          )}
+        </div>
+        <div className="w-[30vw] card p-[1.6vw] flex flex-col gap-[1.6vh]">
+          <div className="eyebrow text-[1.2vw]">Giocatori</div>
+          <div className="grid gap-[.7vw] content-start" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            {sorted.map((num) => {
+              const st = state(num)
+              return (
+                <div
+                  key={num}
+                  className={`relative aspect-square rounded-[.9vw] grid place-items-center display tabular text-[2.3vw] border transition ${
+                    st === 'now' ? 'bg-brand border-ice text-white shadow-[0_0_30px_rgba(47,147,240,.8)] scale-110 z-10'
+                    : st === 'done' ? 'bg-white/[.03] border-line text-white/25' : 'bg-white/[.07] border-line text-white'
+                  }`}
+                >
+                  {num}
+                  {st === 'done' && <Check className="absolute top-[.2vw] right-[.2vw] w-[.9vw] h-[.9vw] text-good" />}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </Frame>
@@ -93,7 +138,7 @@ function Voting({ players }: { players: PlayerDoc[] }) {
       counts.set(p.vote, (counts.get(p.vote) ?? 0) + 1)
     }
   })
-  const rows = players.map((p) => ({ p, n: counts.get(p.id) ?? 0 })).sort((a, b) => b.n - a.n || a.p.nickname.localeCompare(b.p.nickname))
+  const rows = players.map((p) => ({ p, n: counts.get(p.id) ?? 0 })).sort((a, b) => b.n - a.n || (a.p.number ?? 0) - (b.p.number ?? 0))
   const max = Math.max(1, ...rows.map((r) => r.n))
   const shown = rows.slice(0, 9)
   return (
@@ -103,8 +148,8 @@ function Voting({ players }: { players: PlayerDoc[] }) {
           const lead = i === 0 && n > 0
           return (
             <div key={p.id} className="flex items-center gap-[1.4vw]">
-              <div className={`w-[17vw] text-right truncate font-bold text-[2.2vw] ${lead ? 'text-white' : 'text-white/80'}`}>{p.nickname}</div>
-              <div className="flex-1 h-[5.2vh] rounded-full bg-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,.07)' }}>
+              <div className={`w-[19vw] text-right truncate display text-[2.8vw] ${lead ? 'text-white' : 'text-white/75'}`}>Giocatore {p.number ?? '?'}</div>
+              <div className="flex-1 h-[5.2vh] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.07)' }}>
                 <div
                   className={`h-full rounded-full transition-all duration-700 ease-out ${lead ? 'bg-gradient-to-r from-brand to-ice' : 'bg-gradient-to-r from-navy to-brand/70'}`}
                   style={{ width: `${(n / max) * 100}%`, minWidth: n > 0 ? '3%' : 0 }}
@@ -127,9 +172,12 @@ function Reveal({ game, players }: { game: Game; players: PlayerDoc[] }) {
     const t2 = setTimeout(() => setStage(2), 7000)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
-  const names = game.impostorNames.length ? game.impostorNames : players.filter((p) => game.impostorUids.includes(p.id)).map((p) => p.nickname)
-  const caught = players.filter((p) => p.vote && game.impostorUids.includes(p.vote)).length
   const many = game.impostorUids.length > 1
+  const rows = (game.impostorNumbers.length ? game.impostorNumbers : players.filter((p) => game.impostorUids.includes(p.id)).map((p) => p.number ?? 0)).map((n, i) => ({
+    n,
+    name: game.impostorNames[i] ?? players.find((p) => p.number === n)?.nickname ?? '',
+  }))
+  const caught = players.filter((p) => p.vote && game.impostorUids.includes(p.vote)).length
   return (
     <div className="h-full w-full bg-stage flex flex-col items-center justify-center text-center gap-[3.5vh] px-[4vw] overflow-hidden"
       style={stage >= 1 ? { backgroundImage: 'radial-gradient(60vw 40vh at 50% 45%, rgba(255,84,112,.22), transparent 70%)' } : undefined}>
@@ -143,8 +191,14 @@ function Reveal({ game, players }: { game: Game; players: PlayerDoc[] }) {
       {stage >= 1 && (
         <div className="anim-pop flex flex-col items-center gap-[2.4vh]">
           <div className="eyebrow text-[2vw]">{many ? 'Gli impostori erano' : 'L’impostore era'}</div>
-          <div className="display text-[10.5vw] max-w-[92vw]" style={{ background: 'linear-gradient(100deg,#fff,#ff8ea1 60%,#ff5470)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-            {names.join(' · ') || '???'}
+          <div className="flex flex-wrap justify-center gap-[3vw]">
+            {rows.map((r) => (
+              <div key={r.n + r.name} className="flex flex-col items-center">
+                <div className="display text-[7vw] leading-none text-white">Giocatore</div>
+                <div className="display text-[16vw] leading-[.85]" style={{ background: 'linear-gradient(100deg,#fff,#ff8ea1 60%,#ff5470)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{r.n || '?'}</div>
+                <div className="text-[2.6vw] font-bold text-white/85 mt-[1vh]">{r.name}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}

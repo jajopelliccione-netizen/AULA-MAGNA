@@ -61,7 +61,8 @@ export interface QueueItem {
   key: number
 }
 
-export type GameStatus = 'lobby' | 'playing' | 'voting' | 'reveal'
+/** lobby → reading (parola sui telefoni) → turns (giri) → voting → reveal */
+export type GameStatus = 'lobby' | 'reading' | 'turns' | 'voting' | 'reveal'
 
 export interface Game {
   status: GameStatus
@@ -70,9 +71,19 @@ export interface Game {
   word: string | null
   impostorUids: string[]
   impostorNames: string[]
+  /** numeri degli impostori (pubblici solo al "Rivela") */
+  impostorNumbers: number[]
+  /** fine del tempo di lettura della parola (ms, ora del server) */
   endsAt: number | null
+  /** contatore delle partite (serve a ignorare i ruoli vecchi) */
   round: number
-  discussionSec: number
+  readingSec: number
+  /** numero del giro in corso (1, 2, 3…) */
+  giro: number
+  /** ordine in cui parlano i giocatori nel giro (numeri) */
+  order: number[]
+  /** posizione in `order` di chi sta parlando; = order.length a giro finito */
+  turnIndex: number
 }
 
 export const DEFAULT_GAME: Game = {
@@ -82,15 +93,21 @@ export const DEFAULT_GAME: Game = {
   word: null,
   impostorUids: [],
   impostorNames: [],
+  impostorNumbers: [],
   endsAt: null,
   round: 0,
-  discussionSec: 180,
+  readingSec: 8,
+  giro: 0,
+  order: [],
+  turnIndex: 0,
 }
 
 export interface PlayerDoc {
   id: string
   nickname: string
   vote: string | null
+  /** numero assegnato a inizio partita ("Giocatore N") */
+  number: number | null
 }
 
 export interface RoleDoc {
