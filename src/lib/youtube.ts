@@ -63,7 +63,18 @@ export async function searchKaraoke(input: string): Promise<YtResult[]> {
     throw new YtError('Niente connessione, riprova tra poco')
   }
   if (!res.ok) {
-    if (res.status === 403) throw new YtError('Ricerca temporaneamente non disponibile (limite giornaliero). Chiedi all\'admin di aggiungere la canzone.')
+    let reason = ''
+    try {
+      const j = (await res.json()) as { error?: { errors?: { reason?: string }[]; message?: string } }
+      reason = j.error?.errors?.[0]?.reason ?? ''
+      console.error('[youtube]', res.status, j.error?.message)
+    } catch {
+      /* ignora */
+    }
+    if (reason === 'quotaExceeded' || reason === 'dailyLimitExceeded' || reason === 'rateLimitExceeded')
+      throw new YtError('Ricerca non disponibile: limite giornaliero raggiunto. Chiedi all\'admin di aggiungere la canzone.')
+    if (res.status === 403 || res.status === 400)
+      throw new YtError(`Ricerca non configurata correttamente (${reason || res.status}). Avvisa l'admin.`)
     throw new YtError('Errore nella ricerca, riprova')
   }
   const json = (await res.json()) as { items?: { id: { videoId: string }; snippet: { title: string; channelTitle: string } }[] }
