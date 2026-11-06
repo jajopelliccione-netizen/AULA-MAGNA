@@ -20,8 +20,19 @@ export function StaffGate({ title, children }: { title: string; children: ReactN
     setErr('')
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass)
-    } catch {
-      setErr('Email o password non corrette')
+    } catch (ex) {
+      const code = (ex as { code?: string }).code ?? ''
+      const msg: Record<string, string> = {
+        'auth/invalid-credential': 'Email o password non corrette',
+        'auth/wrong-password': 'Password non corretta',
+        'auth/user-not-found': 'Utente non trovato',
+        'auth/invalid-email': "Email non valida (controlla di non avere spazi)",
+        'auth/operation-not-allowed': 'Il metodo Email/Password non è attivo su Firebase (Authentication → Metodo di accesso)',
+        'auth/network-request-failed': 'Niente connessione a Firebase',
+        'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'Chiave Firebase non valida nel file .env',
+        'auth/too-many-requests': 'Troppi tentativi: aspetta qualche minuto',
+      }
+      setErr(`${msg[code] ?? 'Accesso non riuscito'}${code ? ` (${code})` : ''}`)
     } finally {
       setBusy(false)
     }
