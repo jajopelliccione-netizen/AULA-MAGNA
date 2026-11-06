@@ -115,8 +115,8 @@ Oppure da terminale: `npm run build && npx wrangler pages deploy dist --project-
 
 ## Brand e logo
 
-Titolo e nome della scuola sono in `src/lib/brand.ts`. Il logo è `public/logo.svg` (usato anche come icona della scheda):
-**è un'emblema segnaposto**, sostituiscilo con il file ufficiale della scuola (stesso nome `logo.svg`, oppure cambia `BRAND.logo`, ad esempio `/logo.png`).
+Titolo e nome della scuola sono in `src/lib/brand.ts`. Il logo è `public/logo.png` (icona dell'ingranaggio, usata anche come icona della scheda; `public/logo-full.png` è la versione con la scritta):
+Per cambiarlo sostituisci il file (stesso nome) oppure modifica `BRAND.logo`. I colori del tema sono in `src/index.css` (blocco `@theme`).
 
 ## Note tecniche
 

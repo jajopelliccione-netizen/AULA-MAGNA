@@ -3,7 +3,7 @@ export const BRAND = {
   school: 'Galileo Galilei',
   city: 'Roma',
   full: 'Occupazione 2026 · Galileo Galilei',
-  logo: '/logo.svg',
+  logo: '/logo.png',
 }
 
 export function publicUrl(): string {

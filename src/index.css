@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #07070f;
-  --color-panel: #12122a;
-  --color-panel2: #1a1a3a;
-  --color-neon-pink: #ff2bd6;
-  --color-neon-cyan: #22e6ff;
-  --color-neon-lime: #b6ff3b;
+  --color-ink: #060b1c;
+  --color-panel: #0e1838;
+  --color-panel2: #16255a;
+  --color-neon-pink: #2f93f0;
+  --color-neon-cyan: #9fdcff;
+  --color-neon-lime: #6df0cf;
   --color-neon-yellow: #ffe14d;
-  --color-neon-violet: #8b5cf6;
+  --color-neon-violet: #4a46c9;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -24,17 +24,17 @@ body {
 
 .bg-aurora {
   background:
-    radial-gradient(60rem 40rem at 10% -10%, rgba(255, 43, 214, 0.22), transparent 60%),
-    radial-gradient(50rem 40rem at 100% 0%, rgba(34, 230, 255, 0.18), transparent 60%),
-    radial-gradient(50rem 40rem at 50% 120%, rgba(139, 92, 246, 0.25), transparent 60%),
+    radial-gradient(60rem 40rem at 10% -10%, rgba(47, 147, 240, 0.22), transparent 60%),
+    radial-gradient(50rem 40rem at 100% 0%, rgba(159, 220, 255, 0.18), transparent 60%),
+    radial-gradient(50rem 40rem at 50% 120%, rgba(74, 70, 201, 0.25), transparent 60%),
     var(--color-ink);
 }
 
-.text-glow-pink { text-shadow: 0 0 .4em rgba(255, 43, 214, .8), 0 0 1.2em rgba(255, 43, 214, .45); }
-.text-glow-cyan { text-shadow: 0 0 .4em rgba(34, 230, 255, .8), 0 0 1.2em rgba(34, 230, 255, .45); }
-.text-glow-lime { text-shadow: 0 0 .4em rgba(182, 255, 59, .8), 0 0 1.2em rgba(182, 255, 59, .45); }
-.box-glow-pink { box-shadow: 0 0 0 2px rgba(255, 43, 214, .7), 0 0 30px rgba(255, 43, 214, .45); }
-.box-glow-cyan { box-shadow: 0 0 0 2px rgba(34, 230, 255, .7), 0 0 30px rgba(34, 230, 255, .4); }
+.text-glow-pink { text-shadow: 0 0 .4em rgba(47, 147, 240, .8), 0 0 1.2em rgba(47, 147, 240, .45); }
+.text-glow-cyan { text-shadow: 0 0 .4em rgba(159, 220, 255, .8), 0 0 1.2em rgba(159, 220, 255, .45); }
+.text-glow-lime { text-shadow: 0 0 .4em rgba(109, 240, 207, .8), 0 0 1.2em rgba(109, 240, 207, .45); }
+.box-glow-pink { box-shadow: 0 0 0 2px rgba(47, 147, 240, .7), 0 0 30px rgba(47, 147, 240, .45); }
+.box-glow-cyan { box-shadow: 0 0 0 2px rgba(159, 220, 255, .7), 0 0 30px rgba(159, 220, 255, .4); }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
@@ -45,14 +45,14 @@ body {
 }
 .btn:active { transform: scale(.96); }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
-.btn-pink { background: linear-gradient(135deg, #ff2bd6, #8b5cf6); border-color: transparent; }
-.btn-cyan { background: linear-gradient(135deg, #22e6ff, #3b82f6); border-color: transparent; color: #04101a; }
-.btn-lime { background: linear-gradient(135deg, #b6ff3b, #22e6ff); border-color: transparent; color: #04101a; }
+.btn-pink { background: linear-gradient(135deg, #2f93f0, #4a46c9); border-color: transparent; }
+.btn-cyan { background: linear-gradient(135deg, #9fdcff, #2f93f0); border-color: transparent; color: #04101a; }
+.btn-lime { background: linear-gradient(135deg, #6df0cf, #9fdcff); border-color: transparent; color: #04101a; }
 .btn-red { background: linear-gradient(135deg, #ff3b5c, #ff8a3b); border-color: transparent; }
 
 .input {
   width: 100%; border-radius: .9rem; padding: .8rem 1rem; font-size: 1rem;
-  background: #0d0d22; color: #fff; border: 1px solid rgba(255,255,255,.18); outline: none;
+  background: #0a1330; color: #fff; border: 1px solid rgba(255,255,255,.18); outline: none;
 }
 .input:focus { border-color: var(--color-neon-cyan); box-shadow: 0 0 0 3px rgba(34,230,255,.2); }
 
@@ -63,7 +63,7 @@ body {
 @keyframes pop { 0% { transform: scale(.4); opacity: 0 } 70% { transform: scale(1.12); opacity: 1 } 100% { transform: scale(1) } }
 @keyframes pulseGlow { 0%,100% { filter: brightness(1) } 50% { filter: brightness(1.5) } }
 @keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-8px) } 75% { transform: translateX(8px) } }
-@keyframes flash { 0%,100% { background: #ff2bd6 } 50% { background: #22e6ff } }
+@keyframes flash { 0%,100% { background: #2f93f0 } 50% { background: #26235f } }
 @keyframes floaty { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
 .anim-pop { animation: pop .7s cubic-bezier(.2,1.3,.4,1) both; }
 .anim-pulse { animation: pulseGlow 1.2s ease-in-out infinite; }
