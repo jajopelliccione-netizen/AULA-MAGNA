@@ -15,7 +15,7 @@ export const thumbUrl = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.
 
 function readCache(q: string): YtResult[] | null {
   try {
-    const raw = localStorage.getItem('aula.yt.' + q)
+    const raw = localStorage.getItem('aula.yt2.' + q)
     if (!raw) return null
     const { t, r } = JSON.parse(raw) as { t: number; r: YtResult[] }
     return Date.now() - t < TTL ? r : null
@@ -26,13 +26,26 @@ function readCache(q: string): YtResult[] | null {
 
 function writeCache(q: string, r: YtResult[]) {
   try {
-    localStorage.setItem('aula.yt.' + q, JSON.stringify({ t: Date.now(), r }))
+    localStorage.setItem('aula.yt2.' + q, JSON.stringify({ t: Date.now(), r }))
   } catch {
     /* quota piena: ignora */
   }
 }
 
 export class YtError extends Error {}
+
+// Un video è accettato solo se titolo o canale dichiarano che è una base karaoke / strumentale.
+const KARAOKE_RE = /karaok|strumental|instrumental|base\s+musical|sing[\s-]?along|con\s+testo\s+e\s+base|backing\s+track/i
+// ...e scartato se è chiaramente un altro tipo di video (a meno che non dica anche karaoke nel titolo)
+const NOT_KARAOKE_RE = /\b(official\s+(music\s+)?video|videoclip|video\s+ufficiale|live\s+at|reaction|tutorial|lezione)\b/i
+
+export function isKaraoke(title: string, channel: string): boolean {
+  const t = decodeEntities(title)
+  const c = decodeEntities(channel)
+  if (/karaok/i.test(t)) return true
+  if (NOT_KARAOKE_RE.test(t)) return false
+  return KARAOKE_RE.test(t) || /karaok/i.test(c)
+}
 
 /** Cerca su YouTube aggiungendo "karaoke" alla query (con cache locale di 24h per risparmiare quota). */
 export async function searchKaraoke(input: string): Promise<YtResult[]> {
@@ -49,7 +62,7 @@ export async function searchKaraoke(input: string): Promise<YtResult[]> {
     videoEmbeddable: 'true',
     videoSyndicated: 'true',
     safeSearch: 'moderate',
-    maxResults: '10',
+    maxResults: '25',
     regionCode: 'IT',
     relevanceLanguage: 'it',
     fields: 'items(id/videoId,snippet(title,channelTitle))',
@@ -80,6 +93,7 @@ export async function searchKaraoke(input: string): Promise<YtResult[]> {
   const json = (await res.json()) as { items?: { id: { videoId: string }; snippet: { title: string; channelTitle: string } }[] }
   const out: YtResult[] = (json.items ?? [])
     .filter((i) => i.id?.videoId)
+    .filter((i) => isKaraoke(i.snippet.title, i.snippet.channelTitle))
     .map((i) => ({
       videoId: i.id.videoId,
       title: decodeEntities(i.snippet.title),
