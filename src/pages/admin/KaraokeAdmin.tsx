@@ -2,10 +2,10 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
+import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, PlayCircle, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
 import type { AppState, BannedDoc, Kind, PresenceDoc, QueueItem } from '../../lib/types'
 import {
-  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
+  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setBookingsOpen, setGobboAudio, setPlayback, setPlayerStatus, startNextSong, setVolume, unban,
 } from '../../lib/actions'
 import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
 import { useAct } from './act'
@@ -19,6 +19,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
   const act = useAct()
   const L = LABELS[kind]
   const np = state.nowPlaying && (state.nowPlaying.kind ?? 'karaoke') === kind ? state.nowPlaying : null
+  const head = queue[0]
   const [vol, setVol] = useState(state.volume)
   const volTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => setVol(state.volume), [state.volume])
@@ -57,10 +58,27 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
                 <div className="text-sm text-muted mt-1 line-clamp-2">{np.title}</div>
               </div>
             </div>
+          ) : head ? (
+            <div className="rounded-2xl bg-brand/12 border border-brand/40 p-4 flex flex-col gap-3">
+              <div className="eyebrow text-xs">{state.playerStatus === 'between' ? 'In partenza tra poco' : 'Prossima canzone · in attesa'}</div>
+              <div>
+                <div className="display text-white text-3xl leading-none">{kind === 'karaoke' ? 'Sul palco: ' : ''}{head.nickname}</div>
+                <div className="text-sm text-muted mt-1 line-clamp-2">{head.title}</div>
+              </div>
+              <button className="btn btn-primary py-3.5 text-base" onClick={() => act(`ha avviato «${head.title}» di ${head.nickname}`, () => startNextSong(head))}>
+                <PlayCircle className="w-5 h-5" /> {state.playerStatus === 'between' ? 'Avvia subito' : 'Avvia la canzone'}
+              </button>
+              {state.hold && <p className="text-xs text-muted">Sei appena entrato in questa modalità: nulla parte da solo. Avvia quando sei pronto.</p>}
+              {!state.hold && state.playback === 'manual' && <p className="text-xs text-muted">Riproduzione manuale: ogni canzone parte solo quando premi Avvia.</p>}
+            </div>
           ) : (
             <div className="flex items-center gap-3 text-muted rounded-xl bg-white/[.04] border border-line px-4 py-4">
-              {kind === 'karaoke' ? <Mic className="w-5 h-5" /> : <Music2 className="w-5 h-5" />} {state.playerStatus === 'between' ? 'Prossimo brano in partenza…' : 'Nessun brano in riproduzione'}
+              {kind === 'karaoke' ? <Mic className="w-5 h-5" /> : <Music2 className="w-5 h-5" />} Nessun brano in coda
             </div>
+          )}
+
+          {np && state.hold && state.playerStatus === 'paused' && (
+            <p className="text-warn text-sm rounded-xl bg-warn/10 border border-warn/30 px-3 py-2">Questa canzone era rimasta in pausa: premi Riprendi quando vuoi farla ripartire.</p>
           )}
 
           <div className="grid grid-cols-2 gap-2">
@@ -95,6 +113,13 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
             icon={state.bookingsOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
             title="Richieste aperte"
             hint={state.bookingsOpen ? 'I ragazzi possono proporre canzoni' : 'Richieste bloccate'}
+          />
+          <Switch
+            on={state.playback === 'auto'}
+            onChange={(v) => act(v ? 'ha attivato la riproduzione automatica' : 'ha attivato la riproduzione manuale', () => setPlayback(v ? 'auto' : 'manual'))}
+            icon={<PlayCircle className="w-5 h-5" />}
+            title="Riproduzione automatica"
+            hint={state.playback === 'auto' ? 'Dopo il primo avvio le canzoni partono da sole' : 'Manuale: ogni canzone parte solo quando premi Avvia'}
           />
           {kind === 'karaoke' && <Switch
             on={state.gobboAudio}

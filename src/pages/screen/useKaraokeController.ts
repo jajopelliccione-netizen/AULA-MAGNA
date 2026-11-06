@@ -3,8 +3,9 @@ import type { AppState, Kind, QueueItem } from '../../lib/types'
 import { BETWEEN_BY_KIND, beginBetween, finishCurrent, patchState, startNextSong } from '../../lib/actions'
 
 /**
- * Manda avanti la coda da sola. Gira SOLO sullo schermo del proiettore, quando la modalità è "karaoke":
- *  fine video → 10 secondi di "Prossimo" → parte il brano successivo.
+ * Gestisce la coda. Gira SOLO sullo schermo del proiettore, quando la modalità è karaoke o musica.
+ *  - automatica (dopo il primo avvio dell'admin): fine video → conto alla rovescia → parte il brano successivo
+ *  - manuale, oppure appena entrati nella modalità: la prossima canzone resta «in attesa» finché l'admin non preme Avvia
  */
 export function useKaraokeController(state: AppState, queue: QueueItem[], active: boolean, kind: Kind) {
   const stateRef = useRef(state)
@@ -25,7 +26,7 @@ export function useKaraokeController(state: AppState, queue: QueueItem[], active
         setToast(reason)
         setTimeout(() => setToast(''), 5000)
       }
-      await finishCurrent(queueRef.current.length > 0, kind)
+      await finishCurrent(queueRef.current.length > 0, kind, stateRef.current.playback)
     } catch (e) {
       console.error(e)
     } finally {
@@ -43,6 +44,13 @@ export function useKaraokeController(state: AppState, queue: QueueItem[], active
       busyRef.current = true
       try {
         if (s.nowPlaying) return
+        // il primo avvio dopo l'ingresso nella modalità (hold) e ogni brano in modalità manuale li decide l'admin
+        if (s.hold || s.playback === 'manual') {
+          if (q.length > 0 && s.playerStatus !== 'waiting') await patchState({ playerStatus: 'waiting', betweenEndsAt: null })
+          else if (q.length === 0 && s.playerStatus !== 'idle') await patchState({ playerStatus: 'idle', betweenEndsAt: null })
+          return
+        }
+        // riproduzione automatica
         if (s.playerStatus === 'between') {
           if (q.length === 0) await patchState({ playerStatus: 'idle', betweenEndsAt: null })
           else if (!s.betweenEndsAt) await patchState({ betweenEndsAt: nowMs + BETWEEN_BY_KIND[kind] })

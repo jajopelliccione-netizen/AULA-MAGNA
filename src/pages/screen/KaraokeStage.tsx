@@ -67,7 +67,7 @@ export default function KaraokeStage({ state, queue, active, serverNow, kind }: 
         )}
 
         {/* ---------- prossimo: conto alla rovescia ---------- */}
-        {!np && state.playerStatus === 'between' && head && (
+        {!np && (state.playerStatus === 'between' || state.playerStatus === 'waiting') && head && (
           <div className="absolute inset-0 bg-stage flex flex-col items-center justify-center text-center gap-[2.4vh] px-[4vw]">
             <div className="eyebrow text-[1.8vw]">{music ? 'Prossima canzone' : 'Prossimo al microfono'}</div>
             {music ? (
@@ -81,13 +81,17 @@ export default function KaraokeStage({ state, queue, active, serverNow, kind }: 
                 <div className="text-[2.1vw] font-medium text-white/85 max-w-[52vw] line-clamp-2">{head.title}</div>
               </>
             )}
-            <CountdownRing left={left} total={BETWEEN_BY_KIND[kind]} size={Math.round(window.innerHeight * 0.26)} />
+            {state.playerStatus === 'between' ? (
+              <CountdownRing left={left} total={BETWEEN_BY_KIND[kind]} size={Math.round(window.innerHeight * 0.26)} />
+            ) : (
+              <div className="chip !px-[1.6vw] !py-[1vh] text-[1.7vw] border-brand/50 bg-brand/15 text-ice anim-pulse">In attesa dell’avvio</div>
+            )}
             {!music && <div className="text-[1.5vw] text-muted">{head.nickname}, preparati e raggiungi il palco</div>}
           </div>
         )}
 
         {/* ---------- coda vuota ---------- */}
-        {!np && state.playerStatus !== 'between' && (
+        {!np && state.playerStatus !== 'between' && state.playerStatus !== 'waiting' && (
           <div className="absolute inset-0 bg-stage flex items-center justify-center gap-[5vw] px-[4vw]">
             {head ? (
               <div className="display grad-text text-[6vw]">Si parte…</div>

@@ -5,7 +5,7 @@ import {
 import { db } from './firebase'
 import { nicknameKey, shuffle } from './util'
 import { pickWord, recordWord, type WordHistory } from './words'
-import type { AppState, Game, ImpostorConfig, Kind, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
+import type { AppState, Game, ImpostorConfig, Kind, Mode, NowPlaying, Playback, PresenceDoc, QueueItem, SyncInfo } from './types'
 
 /* ------------------------------ ragazzi ------------------------------ */
 
@@ -50,6 +50,12 @@ const kindOfMode = (m: Mode): Kind | null => (m === 'karaoke' || m === 'music' ?
 export async function switchMode(mode: Mode, current: AppState) {
   const np = current.nowPlaying
   const target = kindOfMode(mode)
+
+  // entrando in karaoke/musica da un'altra modalità: niente riparte da solo, decide l'admin
+  const entering = target !== null && current.mode !== mode
+  const resting = np ? { playerStatus: 'paused' as const } : { playerStatus: 'idle' as const, betweenEndsAt: null }
+
+  // passaggio karaoke <-> musica con un brano in corso: il brano interrotto torna nella sua coda
   if (np && target && (np.kind ?? 'karaoke') !== target) {
     let id = np.queueId
     if ((await getDoc(doc(db, 'queue', id))).exists()) id = doc(collection(db, 'queue')).id // evita di sovrascrivere una nuova richiesta dello stesso utente
@@ -66,23 +72,36 @@ export async function switchMode(mode: Mode, current: AppState) {
       createdAt: np.bookedAt,
       order: np.bookedAt,
     })
-    batch.set(stateRef(), { mode, nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null }, { merge: true })
+    batch.set(stateRef(), { mode, hold: true, nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null }, { merge: true })
     await batch.commit()
+    return
+  }
+
+  if (entering) {
+    await patchState({ mode, hold: true, ...resting })
+    return
+  }
+  // uscendo da karaoke/musica il brano in corso resta in pausa: al ritorno non riparte da solo
+  if (np && kindOfMode(current.mode) && !target) {
+    await patchState({ mode, playerStatus: 'paused' })
     return
   }
   await setMode(mode)
 }
+
 export const setPauseMessage = (message: string) => patchState({ message })
 export const setVolume = (volume: number) => patchState({ volume })
 export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsOpen })
-export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState({ playerStatus })
+/** Riprendi (e sblocca la coda) / metti in pausa. */
+export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState(playerStatus === 'playing' ? { playerStatus, hold: false } : { playerStatus })
+export const setPlayback = (playback: Playback) => patchState({ playback })
 export const setImpostorConfig = (config: ImpostorConfig) => patchState({ impostorConfig: config })
 export const logAction = (by: string, text: string, at: number) => patchState({ lastAction: { by, text, at } })
 export const setGobboAudio = (gobboAudio: boolean) => patchState({ gobboAudio })
 export const publishSync = (sync: SyncInfo | null) => patchState({ sync })
 export const requestSkip = () => patchState({ skipNonce: increment(1) })
 /** Fa ricominciare da 0:00 la canzone in corso (e la fa ripartire se era in pausa). */
-export const restartSong = () => patchState({ restartNonce: increment(1), playerStatus: 'playing' })
+export const restartSong = () => patchState({ restartNonce: increment(1), playerStatus: 'playing', hold: false })
 
 /* ------------------------------- staff: coda ------------------------------- */
 
@@ -144,7 +163,7 @@ export async function startNextSong(head: QueueItem | undefined) {
   }
   const batch = writeBatch(db)
   batch.delete(doc(db, 'queue', head.id))
-  batch.set(stateRef(), { nowPlaying: np, playerStatus: 'playing', betweenEndsAt: null, sync: null }, { merge: true })
+  batch.set(stateRef(), { nowPlaying: np, playerStatus: 'playing', betweenEndsAt: null, sync: null, hold: false }, { merge: true })
   await batch.commit()
 }
 
@@ -152,9 +171,11 @@ export async function startNextSong(head: QueueItem | undefined) {
 export const BETWEEN_BY_KIND: Record<Kind, number> = { karaoke: 10_000, music: 4_000 }
 export const BETWEEN_MS = BETWEEN_BY_KIND.karaoke
 
-export async function finishCurrent(hasNext: boolean, kind: Kind = 'karaoke') {
+export async function finishCurrent(hasNext: boolean, kind: Kind = 'karaoke', playback: Playback = 'auto') {
   await patchState(
-    hasNext
+    hasNext && playback === 'manual'
+      ? { nowPlaying: null, playerStatus: 'waiting', betweenEndsAt: null, sync: null }
+      : hasNext
       ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_BY_KIND[kind], sync: null }
       : { nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null },
   )
@@ -329,7 +350,7 @@ export async function ensureInitialDocs() {
   if (!s.exists()) {
     await setDoc(stateRef(), {
       mode: 'lobby', message: 'Torniamo subito!', nowPlaying: null, playerStatus: 'idle',
-      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, restartNonce: 0, gobboAudio: false, sync: null,
+      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, restartNonce: 0, gobboAudio: false, playback: 'auto', hold: false, sync: null,
       impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 }, lastAction: null,
     })
   }

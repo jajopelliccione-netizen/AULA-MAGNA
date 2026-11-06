@@ -47,7 +47,7 @@ function GobboInner() {
       {ready && <KaraokePlayer state={state} active={active} role="follower" muted={!state.gobboAudio} serverNow={serverNow} />}
 
       {/* in attesa: prima/dopo le canzoni o con un'altra modalità attiva */}
-      {(!active || (!np && state.playerStatus !== 'between')) && (
+      {(!active || (!np && state.playerStatus !== 'between' && state.playerStatus !== 'waiting')) && (
         <div className="absolute inset-0 bg-stage flex flex-col items-center justify-center gap-[3vh] text-center">
           <Logo size={Math.round(window.innerHeight * 0.2)} className="anim-floaty" />
           <div className="display grad-text text-[7vw]">{BRAND.title}</div>
@@ -55,12 +55,12 @@ function GobboInner() {
         </div>
       )}
 
-      {active && !np && state.playerStatus === 'between' && head && (
+      {active && !np && (state.playerStatus === 'between' || state.playerStatus === 'waiting') && head && (
         <div className="absolute inset-0 bg-stage flex flex-col items-center justify-center gap-[3vh] text-center px-[4vw]">
           <div className="eyebrow text-[2vw]">Tocca a</div>
           <div className="display grad-text text-[11vw] max-w-[90vw] truncate">{head.nickname}</div>
           <div className="text-[2.4vw] font-medium text-white/85 max-w-[70vw] line-clamp-2">{head.title}</div>
-          <CountdownRing left={left} size={Math.round(window.innerHeight * 0.3)} />
+          {state.playerStatus === 'between' ? <CountdownRing left={left} size={Math.round(window.innerHeight * 0.3)} /> : <div className="eyebrow text-[2vw] anim-pulse">Preparati</div>}
         </div>
       )}
 

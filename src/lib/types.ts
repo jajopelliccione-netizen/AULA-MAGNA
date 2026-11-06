@@ -2,7 +2,13 @@ export type Mode = 'lobby' | 'karaoke' | 'music' | 'impostor' | 'pause'
 /** Le due code di canzoni: karaoke (basi con testo) e musica libera. */
 export type Kind = 'karaoke' | 'music'
 export type RequestStatus = 'pending' | 'approved' | 'rejected'
-export type PlayerStatus = 'idle' | 'playing' | 'paused' | 'between'
+/**
+ * idle = niente in coda · waiting = prossima canzone pronta, aspetta che l'admin prema Avvia
+ * between = conto alla rovescia prima dell'avvio automatico · playing / paused = brano in corso
+ */
+export type PlayerStatus = 'idle' | 'waiting' | 'between' | 'playing' | 'paused'
+/** auto = dopo il primo avvio le canzoni partono da sole · manual = ogni canzone parte solo quando l'admin preme Avvia */
+export type Playback = 'auto' | 'manual'
 
 export interface NowPlaying {
   kind?: Kind
@@ -51,6 +57,9 @@ export interface AppState {
   /** incrementato dall'admin per far ricominciare da capo la canzone in corso */
   restartNonce: number
   gobboAudio: boolean
+  playback: Playback
+  /** true = appena entrati in karaoke/musica: niente parte finché l'admin non avvia */
+  hold: boolean
   sync: SyncInfo | null
   impostorConfig: ImpostorConfig
   lastAction: LastAction | null
@@ -67,6 +76,8 @@ export const DEFAULT_STATE: AppState = {
   skipNonce: 0,
   restartNonce: 0,
   gobboAudio: false,
+  playback: 'auto',
+  hold: false,
   sync: null,
   impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 },
   lastAction: null,

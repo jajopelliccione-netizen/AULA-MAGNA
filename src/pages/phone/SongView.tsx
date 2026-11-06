@@ -48,7 +48,7 @@ export default function SongView({ uid, nick, state, kind }: { uid: string; nick
   const head = queue[0]
   const callKey =
     kind !== 'karaoke' ? ''
-      : state.playerStatus === 'between' && head && head.uid === uid ? `${uid}:${head.createdAt}`
+      : (state.playerStatus === 'between' || (state.playerStatus === 'waiting' && !state.hold)) && head && head.uid === uid ? `${uid}:${head.createdAt}`
       : np && np.uid === uid ? `${uid}:${np.bookedAt}` : ''
   const showCall = callKey !== '' && callKey !== dismissed
   const lastVibrated = useRef('')

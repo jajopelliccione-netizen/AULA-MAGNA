@@ -113,6 +113,10 @@ Le modalità dello schermo sono **Lobby, Karaoke, Musica, Impostore, Pausa**.
 - **Karaoke**: i ragazzi cercano solo basi karaoke con testo e si iscrivono; si forma la coda e chi tocca va sul palco.
 - **Musica**: i ragazzi propongono musica normale a scelta (non karaoke); le canzoni partono sul proiettore una dopo l'altra, senza palco.
 - In **entrambe** una canzone **non entra in coda finché un admin non la approva**: ogni richiesta compare nella sezione **Da approvare** del pannello (con anteprima su YouTube, **Approva**, **Rifiuta** e **Approva tutte**; il numero di richieste in attesa è anche nel titolo della scheda del browser). Il telefono del ragazzo mostra «In attesa di approvazione», poi la posizione in coda oppure «Non approvata». Le canzoni aggiunte a mano dall'admin vanno direttamente in coda.
+- **Avvio e riproduzione**: quando entri in Karaoke o Musica **non riparte nulla da solo**. La canzone che suonava prima resta in pausa (la riprendi tu con *Riprendi*) e la coda resta ferma: nel pannello vedi la prossima canzone e il pulsante **Avvia la canzone**, quindi scegli tu quando parte la prima.
+  - **Riproduzione automatica** (interruttore nelle Impostazioni): dopo il primo avvio le canzoni partono da sole, con il conto alla rovescia tra una e l'altra.
+  - **Riproduzione manuale**: ogni canzone resta «in attesa» e parte solo quando premi **Avvia la canzone** (il cantante viene comunque avvisato sul telefono che è il prossimo).
+  - Qualunque sia la modalità, una canzone entra in coda solo se un admin l'ha approvata.
 - Si può avere una sola richiesta alla volta. L'ordine in coda è quello di approvazione.
 - Passando da Karaoke a Musica (o viceversa) con un brano in corso, il brano interrotto torna nella sua coda: chi stava cantando non perde il turno. Il gobbo mostra solo il karaoke.
 
