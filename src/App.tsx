@@ -6,9 +6,11 @@ import { SetupMissing } from './components/SetupMissing'
 import PhonePage from './pages/phone/PhonePage'
 
 const ScreenPage = lazy(() => import('./pages/screen/ScreenPage'))
+const GobboPage = lazy(() => import('./pages/gobbo/GobboPage'))
+const Preview = import.meta.env.DEV ? lazy(() => import('./pages/Preview')) : null
 const AdminPage = lazy(() => import('./pages/admin/AdminPage'))
 
-const Loading = () => <div className="min-h-full bg-aurora grid place-items-center text-white/60">Caricamento…</div>
+const Loading = () => <div className="min-h-full bg-stage grid place-items-center text-white/60">Caricamento…</div>
 
 export default function App() {
   if (!firebaseConfigured) return <SetupMissing />
@@ -19,6 +21,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<PhonePage />} />
             <Route path="/schermo" element={<ScreenPage />} />
+            {Preview && <Route path="/__preview/:name" element={<Preview />} />}
+            <Route path="/gobbo" element={<GobboPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<PhonePage />} />
           </Routes>

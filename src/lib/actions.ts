@@ -5,7 +5,7 @@ import {
 import { db } from './firebase'
 import { nicknameKey, shuffle } from './util'
 import { pickWord } from './words'
-import type { Mode, NowPlaying, PresenceDoc, QueueItem } from './types'
+import type { Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
 
 /* ------------------------------ ragazzi ------------------------------ */
 
@@ -40,6 +40,8 @@ export const setPauseMessage = (message: string) => patchState({ message })
 export const setVolume = (volume: number) => patchState({ volume })
 export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsOpen })
 export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState({ playerStatus })
+export const setGobboAudio = (gobboAudio: boolean) => patchState({ gobboAudio })
+export const publishSync = (sync: SyncInfo | null) => patchState({ sync })
 export const requestSkip = () => patchState({ skipNonce: increment(1) })
 
 /* ------------------------------- staff: coda ------------------------------- */
@@ -90,7 +92,7 @@ export async function startNextSong(head: QueueItem | undefined) {
   }
   const batch = writeBatch(db)
   batch.delete(doc(db, 'queue', head.id))
-  batch.set(stateRef(), { nowPlaying: np, playerStatus: 'playing', betweenEndsAt: null }, { merge: true })
+  batch.set(stateRef(), { nowPlaying: np, playerStatus: 'playing', betweenEndsAt: null, sync: null }, { merge: true })
   await batch.commit()
 }
 
@@ -99,8 +101,8 @@ export const BETWEEN_MS = 10_000
 export async function finishCurrent(hasNext: boolean) {
   await patchState(
     hasNext
-      ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_MS }
-      : { nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null },
+      ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_MS, sync: null }
+      : { nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null },
   )
 }
 
@@ -231,7 +233,7 @@ export async function ensureInitialDocs() {
   if (!s.exists()) {
     await setDoc(stateRef(), {
       mode: 'lobby', message: 'Torniamo subito!', nowPlaying: null, playerStatus: 'idle',
-      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0,
+      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, gobboAudio: false, sync: null,
     })
   }
   const g = await getDoc(gameRef())

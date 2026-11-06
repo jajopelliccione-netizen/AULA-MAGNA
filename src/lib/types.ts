@@ -11,6 +11,16 @@ export interface NowPlaying {
   startedAt: number
 }
 
+/** Posizione del video pubblicata dallo schermo (master) per tenere il gobbo allineato. */
+export interface SyncInfo {
+  queueId: string
+  /** istante (ms, ora del server) in cui il video era a 0:00: posizione = (ora - base) / 1000 */
+  base: number
+  paused: boolean
+  /** posizione in secondi quando in pausa */
+  pos: number
+}
+
 export interface AppState {
   mode: Mode
   message: string
@@ -20,6 +30,8 @@ export interface AppState {
   volume: number
   betweenEndsAt: number | null
   skipNonce: number
+  gobboAudio: boolean
+  sync: SyncInfo | null
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -31,6 +43,8 @@ export const DEFAULT_STATE: AppState = {
   volume: 80,
   betweenEndsAt: null,
   skipNonce: 0,
+  gobboAudio: false,
+  sync: null,
 }
 
 export interface QueueItem {

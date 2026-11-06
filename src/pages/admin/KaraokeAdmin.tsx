@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Ban, Captions, GripVertical, Lock, Mic, Pause, Play, Plus, SkipForward, Trash2, Unlock, Volume2 } from 'lucide-react'
 import type { AppState, BannedDoc, PresenceDoc, QueueItem } from '../../lib/types'
 import {
-  addManualSong, banNickname, removeFromQueue, reorderQueue, requestSkip, setBookingsOpen, setPlayerStatus, setVolume, unban,
+  addManualSong, banNickname, removeFromQueue, reorderQueue, requestSkip, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
 } from '../../lib/actions'
-import { fetchVideoTitle, parseVideoId } from '../../lib/youtube'
+import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
 
 export default function KaraokeAdmin({ state, queue, presence, banned }: { state: AppState; queue: QueueItem[]; presence: PresenceDoc[]; banned: BannedDoc[] }) {
   const np = state.nowPlaying
@@ -35,58 +36,103 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Player */}
-      <section className="card p-4 flex flex-col gap-3">
-        <h2 className="text-xs uppercase tracking-widest text-white/50 font-bold">Sul palco</h2>
-        {np ? (
-          <div>
-            <div className="text-2xl font-black text-neon-pink">🎤 {np.nickname}</div>
-            <div className="text-white/80">{np.title}</div>
-          </div>
-        ) : (
-          <div className="text-white/60">
-            {state.playerStatus === 'between' ? 'Prossimo brano in partenza…' : 'Nessun brano in riproduzione'}
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {state.playerStatus === 'paused' ? (
-            <button className="btn btn-lime" disabled={!np} onClick={() => setPlayerStatus('playing')}>▶ Riprendi</button>
+    <div className="grid lg:grid-cols-5 gap-5 items-start">
+      {/* ---------- colonna sinistra: palco e controlli ---------- */}
+      <div className="lg:col-span-2 flex flex-col gap-5">
+        <section className="card p-5 flex flex-col gap-4">
+          <h2 className="eyebrow text-xs">Sul palco</h2>
+          {np ? (
+            <div className="flex gap-3 items-center">
+              <img src={thumbUrl(np.videoId)} alt="" className="w-28 aspect-video object-cover rounded-xl bg-surface-2" />
+              <div className="min-w-0">
+                <div className="display text-white text-3xl leading-none truncate">{np.nickname}</div>
+                <div className="text-sm text-muted mt-1 line-clamp-2">{np.title}</div>
+              </div>
+            </div>
           ) : (
-            <button className="btn btn-cyan" disabled={!np} onClick={() => setPlayerStatus('paused')}>⏸ Pausa</button>
+            <div className="flex items-center gap-3 text-muted rounded-xl bg-white/[.04] border border-line px-4 py-4">
+              <Mic className="w-5 h-5" /> {state.playerStatus === 'between' ? 'Prossimo brano in partenza…' : 'Nessun brano in riproduzione'}
+            </div>
           )}
-          <button className="btn btn-red" disabled={!np && state.playerStatus !== 'between'} onClick={() => requestSkip()}>⏭ Salta</button>
-          <button className={`btn ${state.bookingsOpen ? '' : 'btn-red'}`} onClick={() => setBookingsOpen(!state.bookingsOpen)}>
-            {state.bookingsOpen ? '🔓 Prenotazioni aperte' : '🔒 Prenotazioni bloccate'}
-          </button>
-        </div>
-        <label className="flex items-center gap-3">
-          <span className="text-xl">🔊</span>
-          <input type="range" min={0} max={100} value={vol} onChange={(e) => changeVol(Number(e.target.value))} className="flex-1 accent-fuchsia-500" />
-          <span className="w-10 text-right font-bold tabular-nums">{vol}</span>
-        </label>
-        {state.mode !== 'karaoke' && <p className="text-neon-yellow text-sm">⚠️ Lo schermo non è in modalità Karaoke: la coda non avanza.</p>}
-      </section>
 
-      {/* Coda */}
-      <section className="card p-4">
-        <h2 className="text-xs uppercase tracking-widest text-white/50 font-bold mb-3">Coda ({queue.length}) · trascina ⠿ per riordinare</h2>
-        {queue.length === 0 && <p className="text-white/50">Coda vuota</p>}
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={queue.map((q) => q.id)} strategy={verticalListSortingStrategy}>
-            <ul className="flex flex-col gap-2">
-              {queue.map((q, i) => (
-                <Row key={q.id} item={q} index={i} presence={presence} queue={queue} />
-              ))}
-            </ul>
-          </SortableContext>
-        </DndContext>
-      </section>
+          <div className="grid grid-cols-2 gap-2">
+            {state.playerStatus === 'paused' ? (
+              <button className="btn btn-success py-3" disabled={!np} onClick={() => setPlayerStatus('playing')}><Play className="w-4 h-4" fill="currentColor" /> Riprendi</button>
+            ) : (
+              <button className="btn btn-secondary py-3" disabled={!np} onClick={() => setPlayerStatus('paused')}><Pause className="w-4 h-4" fill="currentColor" /> Pausa</button>
+            )}
+            <button className="btn btn-danger py-3" disabled={!np && state.playerStatus !== 'between'} onClick={() => requestSkip()}><SkipForward className="w-4 h-4" fill="currentColor" /> Salta</button>
+          </div>
 
-      <AddSong />
+          <label className="flex items-center gap-3">
+            <Volume2 className="w-5 h-5 text-ice shrink-0" />
+            <input type="range" min={0} max={100} value={vol} onChange={(e) => changeVol(Number(e.target.value))} className="flex-1 accent-[#2f93f0]" />
+            <span className="w-9 text-right font-bold tabular-nums">{vol}</span>
+          </label>
 
-      <BanBox presence={presence} queue={queue} banned={banned} />
+          {state.mode !== 'karaoke' && (
+            <p className="text-warn text-sm rounded-xl bg-warn/10 border border-warn/30 px-3 py-2">Lo schermo non è in modalità Karaoke: la coda non avanza.</p>
+          )}
+        </section>
+
+        <section className="card p-5 flex flex-col gap-1">
+          <h2 className="eyebrow text-xs mb-2">Impostazioni</h2>
+          <Switch
+            on={state.bookingsOpen}
+            onChange={setBookingsOpen}
+            icon={state.bookingsOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+            title="Prenotazioni aperte"
+            hint={state.bookingsOpen ? 'I ragazzi possono prenotare' : 'Prenotazioni bloccate'}
+          />
+          <Switch
+            on={state.gobboAudio}
+            onChange={setGobboAudio}
+            icon={<Captions className="w-5 h-5" />}
+            title="Audio anche sul gobbo"
+            hint="Di norma l’audio esce solo dallo schermo del proiettore"
+          />
+        </section>
+
+        <AddSong />
+      </div>
+
+      {/* ---------- colonna destra: coda e ban ---------- */}
+      <div className="lg:col-span-3 flex flex-col gap-5">
+        <section className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="display text-white text-2xl">Coda <span className="text-muted">({queue.length})</span></h2>
+            <span className="text-xs text-muted">Trascina per riordinare</span>
+          </div>
+          {queue.length === 0 && <p className="text-muted text-sm rounded-xl bg-white/[.04] border border-line px-4 py-6 text-center">Coda vuota</p>}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={queue.map((q) => q.id)} strategy={verticalListSortingStrategy}>
+              <ul className="flex flex-col gap-2">
+                {queue.map((q, i) => (
+                  <Row key={q.id} item={q} index={i} presence={presence} queue={queue} />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        </section>
+
+        <BanBox presence={presence} queue={queue} banned={banned} />
+      </div>
     </div>
+  )
+}
+
+function Switch({ on, onChange, icon, title, hint }: { on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; hint: string }) {
+  return (
+    <button onClick={() => onChange(!on)} className="flex items-center gap-3 text-left rounded-xl px-2 py-2.5 hover:bg-white/[.05] transition" role="switch" aria-checked={on}>
+      <span className={`grid place-items-center w-10 h-10 rounded-xl ${on ? 'bg-brand/20 text-ice' : 'bg-white/[.06] text-muted'}`}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-semibold text-sm">{title}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </span>
+      <span className={`relative w-11 h-6 rounded-full transition ${on ? 'bg-brand' : 'bg-white/15'}`}>
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      </span>
+    </button>
   )
 }
 
@@ -96,22 +142,18 @@ function Row({ item, index, presence, queue }: { item: QueueItem; index: number;
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined }}
-      className={`flex items-center gap-2 rounded-xl bg-white/5 p-2 ${isDragging ? 'ring-2 ring-neon-pink' : ''}`}
+      className={`flex items-center gap-2.5 rounded-2xl bg-white/[.045] border border-line p-2 ${isDragging ? 'ring-2 ring-brand shadow-2xl' : ''}`}
     >
-      <button className="px-2 text-2xl text-white/60 cursor-grab touch-none" aria-label="Trascina" {...attributes} {...listeners}>⠿</button>
-      <span className="w-6 text-center font-black text-neon-cyan">{index + 1}</span>
-      <img src={item.thumbnail} alt="" className="w-16 aspect-video object-cover rounded" />
+      <button className="px-1 text-muted cursor-grab touch-none hover:text-white" aria-label="Trascina" {...attributes} {...listeners}><GripVertical className="w-5 h-5" /></button>
+      <span className="display text-xl w-6 text-center text-ice">{index + 1}</span>
+      <img src={item.thumbnail} alt="" className="w-20 aspect-video object-cover rounded-lg bg-surface-2" />
       <div className="min-w-0 flex-1">
-        <div className="font-bold truncate">{item.nickname}{item.uid === 'manual' && <span className="ml-1 text-xs text-white/50">(admin)</span>}</div>
-        <div className="text-xs text-white/60 truncate">{item.title}</div>
+        <div className="font-bold truncate">{item.nickname}{item.uid === 'manual' && <span className="ml-2 chip !py-0 !text-[.65rem]">admin</span>}</div>
+        <div className="text-xs text-muted truncate">{item.title}</div>
       </div>
-      <button className="btn text-sm px-3 py-1.5" title="Elimina" onClick={() => removeFromQueue(item.id)}>🗑</button>
+      <button className="btn btn-icon" title="Elimina" onClick={() => removeFromQueue(item.id)}><Trash2 className="w-4 h-4" /></button>
       {item.uid !== 'manual' && (
-        <button
-          className="btn text-sm px-3 py-1.5"
-          title="Banna nickname"
-          onClick={() => confirm(`Bannare "${item.nickname}"?`) && banNickname(item.nickname, presence, queue)}
-        >🚫</button>
+        <button className="btn btn-icon btn-danger" title="Banna nickname" onClick={() => confirm(`Bannare "${item.nickname}"?`) && banNickname(item.nickname, presence, queue)}><Ban className="w-4 h-4" /></button>
       )}
     </li>
   )
@@ -140,15 +182,13 @@ function AddSong() {
     }
   }
   return (
-    <form onSubmit={submit} className="card p-4 flex flex-col gap-2">
-      <h2 className="text-xs uppercase tracking-widest text-white/50 font-bold">Aggiungi canzone a mano</h2>
+    <form onSubmit={submit} className="card p-5 flex flex-col gap-3">
+      <h2 className="eyebrow text-xs">Aggiungi una canzone a mano</h2>
       <input className="input" placeholder="Link YouTube o ID video" value={link} onChange={(e) => setLink(e.target.value)} />
-      <div className="grid sm:grid-cols-2 gap-2">
-        <input className="input" placeholder="Titolo (facoltativo)" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input className="input" placeholder="Nome di chi canta (default Admin)" value={who} onChange={(e) => setWho(e.target.value)} maxLength={16} />
-      </div>
-      {err && <p className="text-red-300 text-sm">{err}</p>}
-      <button className="btn btn-pink" disabled={busy || !link.trim()}>{busy ? 'Aggiungo…' : '＋ Aggiungi in coda'}</button>
+      <input className="input" placeholder="Titolo (facoltativo)" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <input className="input" placeholder="Chi canta (default Admin)" value={who} onChange={(e) => setWho(e.target.value)} maxLength={16} />
+      {err && <p className="text-bad text-sm">{err}</p>}
+      <button className="btn btn-primary py-3" disabled={busy || !link.trim()}><Plus className="w-4 h-4" /> {busy ? 'Aggiungo…' : 'Aggiungi in coda'}</button>
     </form>
   )
 }
@@ -158,8 +198,8 @@ function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: Q
   const nickBans = banned.filter((b) => !b.uid)
   const deviceBans = banned.filter((b) => b.uid)
   return (
-    <section className="card p-4 flex flex-col gap-3">
-      <h2 className="text-xs uppercase tracking-widest text-white/50 font-bold">Ban nickname</h2>
+    <section className="card p-5 flex flex-col gap-3">
+      <h2 className="eyebrow text-xs">Nickname bannati</h2>
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -169,17 +209,17 @@ function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: Q
       >
         <input className="input" placeholder="Nickname da bannare" value={nick} onChange={(e) => setNick(e.target.value)} list="online-nicks" />
         <datalist id="online-nicks">{presence.map((p) => <option key={p.id} value={p.nickname} />)}</datalist>
-        <button className="btn btn-red">Banna</button>
+        <button className="btn btn-danger"><Ban className="w-4 h-4" /> Banna</button>
       </form>
       <div className="flex flex-wrap gap-2">
-        {nickBans.length === 0 && <span className="text-white/50 text-sm">Nessun ban attivo</span>}
+        {nickBans.length === 0 && <span className="text-muted text-sm">Nessun ban attivo</span>}
         {nickBans.map((b) => (
-          <button key={b.id} className="rounded-full bg-red-500/20 border border-red-400/40 px-3 py-1 text-sm" onClick={() => confirm(`Togliere il ban a "${b.nickname}"?`) && unbanAll(b, banned)}>
-            🚫 {b.nickname} ✕
+          <button key={b.id} className="chip border-bad/40 bg-bad/10 text-[#ff9aab] hover:bg-bad/20" title="Clicca per togliere il ban" onClick={() => confirm(`Togliere il ban a "${b.nickname}"?`) && unbanAll(b, banned)}>
+            <Ban className="w-3 h-3" /> {b.nickname} <span className="opacity-60">✕</span>
           </button>
         ))}
       </div>
-      {deviceBans.length > 0 && <p className="text-xs text-white/40">{deviceBans.length} dispositivi bloccati insieme ai nickname.</p>}
+      {deviceBans.length > 0 && <p className="text-xs text-muted">{deviceBans.length} dispositivi bloccati insieme ai nickname.</p>}
     </section>
   )
 }

@@ -6,7 +6,8 @@ tra i telefoni dei ragazzi, lo schermo del proiettore e il pannello admin.
 | Pagina | Chi la usa | Cosa fa |
 |---|---|---|
 | `/` | telefoni dei ragazzi | nickname, prenota canzoni, gioca all'impostore |
-| `/schermo` | PC del proiettore | video karaoke, QR code, coda, voti, reveal (richiede login admin) |
+| `/schermo` | PC del proiettore | video karaoke con la coda, QR code, voti, reveal (richiede login) |
+| `/gobbo` | schermo per chi canta | **solo** il video con il testo, a tutto schermo, senza coda (richiede login) |
 | `/admin` | chi gestisce la serata | cambia modalità, gestisce coda e partite (richiede login admin) |
 
 **Stack:** React + Vite + TypeScript, Tailwind v4, Firebase (Firestore + Auth), YouTube IFrame Player API + Data API v3, Cloudflare Pages.
@@ -106,9 +107,21 @@ npm run preview    # prova la build
 
 Oppure da terminale: `npm run build && npx wrangler pages deploy dist --project-name aula-magna`.
 
+## I tre schermi
+
+- **Admin** (`/admin`): pannello di controllo, dal telefono o dal PC.
+- **Proiettore** (`/schermo`): video + coda + QR. È lui che manda avanti la coda: tienilo sempre aperto durante il karaoke.
+- **Gobbo** (`/gobbo`): stesso video, solo testo, nessuna coda. Segue lo schermo in automatico e si riallinea da solo se scarta più di ~1 secondo.
+  Di default **non emette audio** (esce solo dal proiettore): dall'admin puoi attivare «Audio anche sul gobbo».
+
+`/admin`, `/schermo` e `/gobbo` chiedono email e password. Possono usare tutti lo stesso account admin. Se vuoi account separati,
+crea altri utenti in Firebase Authentication e aggiungi i loro UID sia in `firestore.rules` sia in `VITE_ADMIN_UIDS`.
+Per sicurezza, in Firebase → Authentication → Impostazioni → **Azioni dell'utente** disattiva «Abilita creazione (registrazione)»:
+così nessuno può crearsi un account con email e password.
+
 ## Come si usa la serata
 
-1. PC del proiettore: apri `/schermo`, accedi, premi **Clicca per avviare** (schermo intero + audio sbloccato).
+1. PC del proiettore: apri `/schermo`, accedi, premi **Clicca per avviare** (schermo intero + audio sbloccato). Sul PC del gobbo apri `/gobbo` e fai lo stesso.
 2. Dal telefono/PC admin apri `/admin` e scegli la modalità: **Lobby → Karaoke / Impostore → Pausa**.
 3. **Karaoke**: la coda avanza da sola (fine video → 10 secondi di "Prossimo" → parte il successivo). L'admin può mettere in pausa, saltare, regolare il volume, riordinare trascinando ⠿, eliminare, aggiungere a mano, bloccare le prenotazioni, bannare un nickname.
    Quando tocca a un ragazzo il suo telefono mostra a schermo intero **TOCCA A TE! Vai sul palco** (e vibra).

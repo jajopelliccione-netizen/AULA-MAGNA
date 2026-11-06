@@ -4,14 +4,14 @@ export function Logo({ size = 48, className = '' }: { size?: number; className?:
   return <img src={BRAND.logo} alt={`Logo ${BRAND.school}`} width={size} height={size} className={className} style={{ width: size, height: size }} />
 }
 
-/** Intestazione di marca: logo + "Occupazione 2026 · Galileo Galilei" */
+/** Marchio: logo + "OCCUPAZIONE 2026 / Galileo Galilei · Roma" */
 export function BrandTitle({ size = 44, big = false }: { size?: number; big?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <Logo size={size} />
-      <div className="leading-tight">
-        <div className={`font-black tracking-wide text-neon-pink text-glow-pink ${big ? 'text-5xl' : 'text-base'}`}>{BRAND.title}</div>
-        <div className={`font-semibold text-neon-cyan ${big ? 'text-3xl' : 'text-xs'}`}>
+      <div className="leading-none">
+        <div className={`display text-white ${big ? 'text-5xl' : 'text-[1.35rem]'}`}>{BRAND.title}</div>
+        <div className={`eyebrow ${big ? 'text-2xl mt-2' : 'text-[.7rem] mt-1'}`}>
           {BRAND.school} · {BRAND.city}
         </div>
       </div>

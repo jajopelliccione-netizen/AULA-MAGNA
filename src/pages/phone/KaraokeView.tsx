@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Check, Lock, Mic, Music2, Plus, Search, X } from 'lucide-react'
 import { useQueue } from '../../lib/hooks'
 import { bookSong, cancelBooking } from '../../lib/actions'
 import { searchKaraoke, youtubeConfigured, YtError, type YtResult } from '../../lib/youtube'
@@ -45,7 +46,7 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
     try {
       const r = await searchKaraoke(q)
       setResults(r.filter((x) => !isProfane(x.title)))
-      if (r.length === 0) setErr('Nessuna versione karaoke trovata: prova a scrivere titolo + artista (es. "Albachiara Vasco Rossi")')
+      if (r.length === 0) setErr('Nessuna versione karaoke trovata: prova con titolo + artista (es. "Albachiara Vasco Rossi")')
     } catch (ex) {
       setErr(ex instanceof YtError ? ex.message : 'Errore nella ricerca')
     } finally {
@@ -69,92 +70,120 @@ export default function KaraokeView({ uid, nick, state }: { uid: string; nick: s
   }
 
   const songsAhead = myIndex + (np ? 1 : 0)
-  const position =
-    myIndex === 0 ? 'Sei il prossimo! 🔥' : `Tocca a te tra ${songsAhead} ${plural(songsAhead, 'canzone', 'canzoni')}`
+  const position = myIndex === 0 ? 'Sei il prossimo' : `Tocca a te tra ${songsAhead} ${plural(songsAhead, 'canzone', 'canzoni')}`
 
   return (
-    <div className="p-4 flex flex-col gap-4">
-      {showCall && (
-        <div className="fixed inset-0 z-50 anim-flash flex flex-col items-center justify-center text-center p-6 gap-6 text-ink">
-          <div className="text-8xl anim-shake">🎤</div>
-          <h1 className="text-6xl font-black leading-none">TOCCA A TE!</h1>
-          <p className="text-3xl font-extrabold">Vai sul palco</p>
-          <p className="text-lg font-bold opacity-80 max-w-xs">{mine?.title ?? np?.title}</p>
-          <button className="btn bg-ink text-white text-lg px-8 py-3 mt-4" onClick={() => setDismissed(callKey)}>Ho capito!</button>
-        </div>
-      )}
+    <div className="p-4 flex flex-col gap-5 pb-10">
+      {showCall && <CallOverlay title={mine?.title ?? np?.title ?? ''} onClose={() => setDismissed(callKey)} />}
 
       {!state.bookingsOpen && (
-        <div className="rounded-xl bg-red-500/20 border border-red-400/50 p-3 text-center font-bold">🔒 Prenotazioni chiuse al momento</div>
+        <div className="flex items-center gap-2.5 rounded-2xl bg-bad/12 border border-bad/40 px-4 py-3 text-sm font-semibold text-[#ff9aab]">
+          <Lock className="w-4 h-4 shrink-0" /> Le prenotazioni sono chiuse al momento
+        </div>
       )}
 
       {mine ? (
-        <div className="card p-4 flex flex-col gap-3 box-glow-pink">
-          <div className="text-xs uppercase tracking-widest text-neon-pink font-bold">La tua prenotazione</div>
+        <section className="card p-4 flex flex-col gap-4 ring-1 ring-brand/50">
+          <div className="eyebrow text-xs">La tua prenotazione</div>
           <div className="flex gap-3 items-center">
-            <img src={mine.thumbnail} alt="" width={96} height={54} className="rounded-lg w-24 h-[54px] object-cover" />
-            <div className="min-w-0 font-semibold leading-snug line-clamp-3">{mine.title}</div>
+            <img src={mine.thumbnail} alt="" width={112} height={63} className="rounded-xl w-28 aspect-video object-cover bg-surface-2" />
+            <div className="min-w-0 font-semibold leading-snug line-clamp-3 text-sm">{mine.title}</div>
           </div>
-          <div className="text-xl font-black text-neon-lime text-glow-lime">{position}</div>
-          <button className="btn btn-red" onClick={() => cancelBooking(uid)}>Annulla prenotazione</button>
-        </div>
+          <div className="flex items-center gap-3 rounded-xl bg-brand/12 border border-brand/35 px-4 py-3">
+            <Music2 className="w-5 h-5 text-ice shrink-0" />
+            <div className="display text-white text-[1.7rem]">{position}</div>
+          </div>
+          <button className="btn btn-danger" onClick={() => cancelBooking(uid)}><X className="w-4 h-4" /> Annulla prenotazione</button>
+        </section>
       ) : (
-        <>
+        <section className="flex flex-col gap-3">
+          <div>
+            <h2 className="display text-white text-3xl">Prenota la tua canzone</h2>
+            <p className="text-sm text-muted mt-1">Cerca titolo e artista: mostriamo solo basi karaoke con il testo.</p>
+          </div>
           <form onSubmit={search} className="flex gap-2">
-            <input
-              className="input flex-1"
-              type="search"
-              inputMode="search"
-              enterKeyHint="search"
-              placeholder="Titolo e artista (es. Albachiara Vasco Rossi)"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              disabled={!state.bookingsOpen}
-            />
-            <button className="btn btn-cyan" disabled={searching || !state.bookingsOpen}>{searching ? '…' : 'Cerca'}</button>
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                className="input !pl-10"
+                type="search"
+                inputMode="search"
+                enterKeyHint="search"
+                placeholder="Es. Albachiara Vasco Rossi"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                disabled={!state.bookingsOpen}
+              />
+            </div>
+            <button className="btn btn-primary px-5" disabled={searching || !state.bookingsOpen}>{searching ? '…' : 'Cerca'}</button>
           </form>
-          {!youtubeConfigured && <p className="text-neon-yellow text-sm">Ricerca non attiva: chiedi all'admin di aggiungere la tua canzone.</p>}
-          {err && <p className="text-red-300 text-sm">{err}</p>}
-          <ul className="flex flex-col gap-2">
+          {!youtubeConfigured && <p className="text-warn text-sm">Ricerca non attiva: chiedi all'admin di aggiungere la tua canzone.</p>}
+          {err && <p className="text-bad text-sm">{err}</p>}
+          <ul className="flex flex-col gap-2.5">
             {results.map((r) => (
-              <li key={r.videoId} className="card p-2 flex gap-3 items-center">
-                <img src={r.thumbnail} alt="" loading="lazy" width={112} height={63} className="rounded-lg w-28 h-[63px] object-cover bg-panel2 shrink-0" />
+              <li key={r.videoId} className="card p-2.5 flex gap-3 items-center">
+                <img src={r.thumbnail} alt="" loading="lazy" width={112} height={63} className="rounded-lg w-28 aspect-video object-cover bg-surface-2 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold leading-snug line-clamp-2">{r.title}</div>
-                  <div className="text-xs text-white/50 truncate"><span className="text-neon-lime font-bold">🎤 Karaoke</span> · {r.channel}</div>
+                  <div className="text-xs text-muted truncate mt-0.5">{r.channel}</div>
                 </div>
-                <button className="btn btn-pink text-sm px-3 py-2" disabled={booking !== null || !state.bookingsOpen} onClick={() => book(r)}>
-                  {booking === r.videoId ? '…' : 'Prenota'}
+                <button className="btn btn-primary px-3 py-2.5" disabled={booking !== null || !state.bookingsOpen} onClick={() => book(r)} aria-label="Prenota">
+                  {booking === r.videoId ? '…' : <><Plus className="w-4 h-4" /> Prenota</>}
                 </button>
               </li>
             ))}
           </ul>
-        </>
+        </section>
       )}
 
       <section>
-        <h2 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Sul palco e in coda</h2>
+        <div className="flex items-center justify-between mb-2.5">
+          <h2 className="eyebrow text-xs">Sul palco e in coda</h2>
+          {queue.length > 0 && <span className="chip">{queue.length}</span>}
+        </div>
         {np && (
-          <div className="card p-3 mb-2 border-neon-lime/60 flex gap-3 items-center">
-            <span className="text-2xl">🎤</span>
+          <div className="card p-3 mb-2.5 flex gap-3 items-center ring-1 ring-good/50">
+            <span className="grid place-items-center w-10 h-10 rounded-full bg-good/15 text-good shrink-0"><Mic className="w-5 h-5" /></span>
             <div className="min-w-0">
-              <div className="font-bold text-neon-lime truncate">{np.nickname}</div>
-              <div className="text-xs text-white/70 line-clamp-1">{np.title}</div>
+              <div className="text-[.65rem] font-bold uppercase tracking-widest text-good">Ora sul palco</div>
+              <div className="font-bold truncate">{np.nickname}</div>
+              <div className="text-xs text-muted truncate">{np.title}</div>
             </div>
           </div>
         )}
-        {queue.length === 0 && !np && <p className="text-white/50 text-sm">Nessuno in coda: sii il primo! 🎶</p>}
+        {queue.length === 0 && !np && <p className="text-muted text-sm">Nessuno in coda: sii il primo!</p>}
         <ol className="flex flex-col gap-1.5">
           {queue.slice(0, 12).map((it, i) => (
-            <li key={it.id} className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm ${it.uid === uid ? 'bg-neon-pink/20 border border-neon-pink/60' : 'bg-white/5'}`}>
-              <span className="w-6 text-center font-black text-neon-cyan">{i + 1}</span>
-              <span className="font-bold truncate max-w-[35%]">{it.nickname}</span>
-              <span className="text-white/60 truncate">{it.title}</span>
+            <li key={it.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm border ${it.uid === uid ? 'bg-brand/12 border-brand/50' : 'bg-white/[.04] border-line'}`}>
+              <span className="display text-xl w-6 text-center text-ice">{i + 1}</span>
+              <span className="font-bold truncate max-w-[36%]">{it.nickname}</span>
+              <span className="text-muted truncate">{it.title}</span>
             </li>
           ))}
         </ol>
-        {queue.length > 12 && <p className="text-xs text-white/40 mt-2">…e altre {queue.length - 12} canzoni</p>}
+        {queue.length > 12 && <p className="text-xs text-muted mt-2">e altre {queue.length - 12} canzoni</p>}
       </section>
+    </div>
+  )
+}
+
+export function CallOverlay({ title, onClose }: { title: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 anim-flash flex flex-col items-center justify-center text-center p-6 gap-7 text-white overflow-hidden"
+      style={{ backgroundImage: 'radial-gradient(80vmin 80vmin at 50% 38%, rgba(255,255,255,.22), transparent 70%)' }}>
+      <div className="relative grid place-items-center w-36 h-36">
+        <span className="ring-pulse w-36 h-36" />
+        <span className="ring-pulse w-36 h-36" style={{ animationDelay: '.7s' }} />
+        <div className="relative grid place-items-center w-36 h-36 rounded-full bg-white text-brand-deep shadow-2xl">
+          <Mic className="w-16 h-16 anim-shake" />
+        </div>
+      </div>
+      <div>
+        <h1 className="display text-[5.5rem] leading-[.9]">Tocca a te</h1>
+        <p className="display text-3xl mt-3 text-white/90">Vai sul palco</p>
+      </div>
+      {title && <p className="max-w-xs text-sm font-semibold bg-black/25 rounded-full px-4 py-2 line-clamp-2">{title}</p>}
+      <button className="btn bg-white !text-brand-deep text-base px-8 py-3.5 mt-2 shadow-xl hover:!bg-white" onClick={onClose}><Check className="w-5 h-5" /> Ho capito</button>
     </div>
   )
 }

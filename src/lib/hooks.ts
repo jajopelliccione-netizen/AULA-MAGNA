@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { collection, doc, onSnapshot } from 'firebase/firestore'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { collection, doc, getDocFromServer, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from './firebase'
+import { useAuth } from './auth'
 import { snapData } from './util'
 import { DEFAULT_GAME, DEFAULT_STATE, type AppState, type Game, type PlayerDoc, type QueueItem, type PresenceDoc, type BannedDoc } from './types'
 
@@ -104,7 +105,7 @@ export function usePresence(enabled = true) {
     const t = setInterval(() => setNow(Date.now()), 15000)
     return () => clearInterval(t)
   }, [])
-  const online = items.filter((p) => now - p.lastSeen < PRESENCE_TTL)
+  const online = items.filter((p) => !p.nickname.startsWith('_') && now - p.lastSeen < PRESENCE_TTL)
   return { online, count: online.length }
 }
 
@@ -130,4 +131,45 @@ export function useNow(ms = 250): number {
     return () => clearInterval(t)
   }, [ms])
   return now
+}
+
+/**
+ * Stima lo scarto tra l'orologio di questo dispositivo e quello del server Firestore,
+ * così schermo e gobbo ragionano sullo stesso tempo anche se i PC hanno orari diversi.
+ * Usa il proprio documento "presence/<uid>" con nickname "_clock" (ignorato nel conteggio).
+ */
+export function useServerClock(): () => number {
+  const { user } = useAuth()
+  const offset = useRef(0)
+  useEffect(() => {
+    if (!user) return
+    let stop = false
+    const ref = doc(db, 'presence', user.uid)
+    const measure = async () => {
+      let best: { rtt: number; off: number } | null = null
+      for (let i = 0; i < 3 && !stop; i++) {
+        try {
+          const t0 = Date.now()
+          await setDoc(ref, { nickname: '_clock', nicknameKey: 'clock', lastSeen: serverTimestamp() })
+          const snap = await getDocFromServer(ref)
+          const t1 = Date.now()
+          const srv = (snap.data()?.lastSeen as { toMillis: () => number } | undefined)?.toMillis()
+          if (srv) {
+            const cand = { rtt: t1 - t0, off: srv - (t0 + t1) / 2 }
+            if (!best || cand.rtt < best.rtt) best = cand
+          }
+        } catch (e) {
+          console.warn('[clock]', e)
+        }
+      }
+      if (best && !stop) offset.current = best.off
+    }
+    measure()
+    const t = setInterval(measure, 5 * 60_000)
+    return () => {
+      stop = true
+      clearInterval(t)
+    }
+  }, [user])
+  return useCallback(() => Date.now() + offset.current, [])
 }
