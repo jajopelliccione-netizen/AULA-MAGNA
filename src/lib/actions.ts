@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { nicknameKey, shuffle } from './util'
-import { pickWord } from './words'
+import { pickWord, recordWord, type WordHistory } from './words'
 import type { Game, Mode, NowPlaying, PresenceDoc, QueueItem, SyncInfo } from './types'
 
 /* ------------------------------ ragazzi ------------------------------ */
@@ -158,7 +158,11 @@ export async function startRound(opts: RoundOptions, nowMs: number) {
 
   const numbered = shuffle(players).map((p, i) => ({ ...p, number: i + 1 }))
   const nImp = Math.max(1, Math.min(opts.impostors, players.length - 2))
-  const { category, word } = pickWord(opts.categoryId)
+  // memoria delle parole già uscite (documento riservato all'admin)
+  const privSnap = await getDoc(doc(db, 'impostor/private'))
+  const history = (privSnap.data()?.history as WordHistory | undefined) ?? {}
+  const lastCategoryId = privSnap.data()?.lastCategoryId as string | undefined
+  const { category, word, key: wordK } = pickWord(opts.categoryId, history, nowMs, lastCategoryId)
   const impostors = shuffle(numbered).slice(0, nImp)
   const impUids = new Set(impostors.map((p) => p.uid))
 
@@ -190,6 +194,8 @@ export async function startRound(opts: RoundOptions, nowMs: number) {
       impostorNames: impostors.map((p) => p.nickname),
       impostorNumbers: impostors.map((p) => p.number).sort((x, y) => x - y),
       round,
+      history: recordWord(history, wordK, nowMs),
+      lastCategoryId: category.id,
     }),
   )
   await commitChunks(ops)
@@ -225,6 +231,12 @@ export const nextGiro = (currentGiro: number) => newGiro(currentGiro + 1)
 /** Avanti / indietro di un giocatore nel giro. */
 export const moveTurn = (game: Game, delta: number) =>
   setDoc(gameRef(), { turnIndex: Math.max(0, Math.min(game.order.length, game.turnIndex + delta)) }, { merge: true })
+
+/** Azzera la memoria delle parole (tutte tornano disponibili). */
+export async function resetWordHistory() {
+  const ref = doc(db, 'impostor/private')
+  if ((await getDoc(ref)).exists()) await updateDoc(ref, { history: {} })
+}
 
 export const startVoting = () => setDoc(gameRef(), { status: 'voting', endsAt: null }, { merge: true })
 

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Play, RotateCcw, RotateCw, UserX, Vote } from 'lucide-react'
 import type { Game, PlayerDoc } from '../../lib/types'
-import { expelPlayer, moveTurn, nextGiro, resetLobby, revealRound, startRound, startTurns, startVoting } from '../../lib/actions'
-import { CATEGORIES, RANDOM_CATEGORY_ID } from '../../lib/words'
+import { expelPlayer, moveTurn, nextGiro, resetLobby, resetWordHistory, revealRound, startRound, startTurns, startVoting } from '../../lib/actions'
+import { CATEGORIES, RANDOM_CATEGORY_ID, availability, type WordHistory } from '../../lib/words'
+import { useDoc } from '../../lib/hooks'
 
 const STATUS_LABEL: Record<Game['status'], string> = {
   lobby: 'Lobby · i giocatori stanno entrando',
@@ -25,6 +26,8 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
     try { await fn() } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
 
+  const { data: priv } = useDoc<{ history?: WordHistory }>('impostor/private', {})
+  const avail = availability(categoryId, priv.history ?? {}, serverNow())
   const byNumber = (n: number) => players.find((p) => p.number === n)
   const votesFor = (id: string) => players.filter((p) => p.vote === id).length
   const finished = game.turnIndex >= game.order.length
@@ -51,6 +54,11 @@ export default function ImpostorAdmin({ game, players, serverNow }: { game: Game
                 ))}
               </select>
             </label>
+
+            <p className="text-xs text-muted -mt-2 flex items-center justify-between gap-2">
+              <span>Parole disponibili ora: <b className="text-white">{avail.free}</b> su {avail.total}{avail.free < avail.total && ' (le altre sono uscite da poco)'}</span>
+              <button className="underline underline-offset-2 hover:text-white" onClick={() => confirm('Azzerare la memoria delle parole uscite? Tutte torneranno disponibili.') && run(resetWordHistory)}>Azzera</button>
+            </p>
 
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold">Numero di impostori</span>

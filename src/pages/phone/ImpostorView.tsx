@@ -50,11 +50,24 @@ export default function ImpostorView({ uid, nick }: { uid: string; nick: string 
   }
 
   if (game.status === 'reveal') return <RevealView game={game} uid={uid} voted={me?.vote ?? null} players={players} />
-  if (!role || !me?.number) return <Msg icon={<Hourglass />} title="Carico il tuo ruolo…" text="Se non compare entro pochi secondi, ricarica la pagina." />
+  if (!role || !me?.number) return <LoadingRole />
 
   if (game.status === 'reading') return <ReadingView key={game.round} role={role} sec={game.readingSec} number={me.number} />
   if (game.status === 'turns') return <TurnsView game={game} number={me.number} category={role.category} />
   return <VotingView uid={uid} me={me.vote} players={players} myNumber={me.number} />
+}
+
+function LoadingRole() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 5000)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <Msg icon={<Hourglass />} title="Carico il tuo ruolo…" text={slow ? 'Ci sta mettendo troppo: ricarica la pagina per aggiornare l’app.' : undefined}>
+      {slow && <button className="btn btn-primary mt-2" onClick={() => window.location.reload()}>Ricarica</button>}
+    </Msg>
+  )
 }
 
 function Msg({ title, text, icon, accent, children }: { title: string; text?: string; icon?: ReactNode; accent?: boolean; children?: ReactNode }) {

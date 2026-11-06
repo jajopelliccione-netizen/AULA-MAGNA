@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
-import { initializeFirestore, type Firestore } from 'firebase/firestore'
+import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth'
+import { connectFirestoreEmulator, initializeFirestore, type Firestore } from 'firebase/firestore'
 
 const env = import.meta.env
 const cfg = {
@@ -27,3 +27,9 @@ export const adminUids: string[] = ((env.VITE_ADMIN_UIDS as string | undefined) 
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean)
+
+// Solo per i test in locale con gli emulatori Firebase (VITE_USE_EMULATOR=1): in produzione non fa nulla.
+if (firebaseConfigured && import.meta.env.VITE_USE_EMULATOR) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', 8085)
+}

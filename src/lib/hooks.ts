@@ -60,7 +60,13 @@ export function useCollection<T>(path: string | null, map: (id: string, d: Recor
 }
 
 export const useAppState = (enabled = true) => useDoc<AppState>(enabled ? 'state/current' : null, DEFAULT_STATE)
-export const useGame = (enabled = true) => useDoc<Game>(enabled ? 'impostor/game' : null, DEFAULT_GAME)
+const GAME_STATUSES = ['lobby', 'reading', 'turns', 'voting', 'reveal']
+export function useGame(enabled = true) {
+  const res = useDoc<Game>(enabled ? 'impostor/game' : null, DEFAULT_GAME)
+  // una partita salvata da una versione precedente (es. stato "playing") riparte dalla lobby
+  const data = GAME_STATUSES.includes(res.data.status) ? res.data : { ...res.data, status: 'lobby' as const }
+  return { data, ready: res.ready }
+}
 
 export function useQueue(enabled = true) {
   const { items, ready } = useCollection<QueueItem>(enabled ? 'queue' : null, (id, d) => {

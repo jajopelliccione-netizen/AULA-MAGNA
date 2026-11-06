@@ -54,10 +54,95 @@ export const CATEGORIES: Category[] = [
 
 export const RANDOM_CATEGORY_ID = 'random'
 
-export function pickWord(categoryId: string): { category: Category; word: string } {
-  const cat = categoryId === RANDOM_CATEGORY_ID || !CATEGORIES.find((c) => c.id === categoryId)
-    ? CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)]
-    : CATEGORIES.find((c) => c.id === categoryId)!
-  const word = cat.words[Math.floor(Math.random() * cat.words.length)]
-  return { category: cat, word }
+/* ----------------------------------------------------------------------------
+ * Memoria delle parole: ogni parola ricorda quando è uscita l'ultima volta.
+ *  - entro REST_MS (8 ore) non può uscire di nuovo
+ *  - tra 8 e 48 ore torna con una probabilità che cresce piano piano
+ *  - oltre 48 ore (o mai uscita) ha la probabilità piena
+ * Così la mattina può ricapitare una parola della sera prima, ma con tanto tempo in mezzo.
+ * ------------------------------------------------------------------------- */
+export type WordHistory = Record<string, number>
+
+export const REST_MS = 8 * 3600_000
+export const FULL_MS = 48 * 3600_000
+const FORGET_MS = 7 * 24 * 3600_000
+
+const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+export const wordKey = (categoryId: string, word: string) => `${categoryId}_${slug(word)}`
+
+/** Peso di una parola: 0 = a riposo, 1 = piena probabilità. */
+export function wordWeight(lastUsed: number | undefined, now: number): number {
+  if (lastUsed === undefined) return 1
+  const age = now - lastUsed
+  if (age < REST_MS) return 0
+  if (age >= FULL_MS) return 1
+  const t = (age - REST_MS) / (FULL_MS - REST_MS)
+  return 0.05 + 0.95 * t * t
+}
+
+/** Quante parole di una categoria sono utilizzabili adesso. */
+export function availability(categoryId: string, history: WordHistory, now: number): { free: number; total: number } {
+  const cats = categoryId === RANDOM_CATEGORY_ID ? CATEGORIES : CATEGORIES.filter((c) => c.id === categoryId)
+  let free = 0
+  let total = 0
+  cats.forEach((c) => c.words.forEach((w) => {
+    total++
+    if (wordWeight(history[wordKey(c.id, w)], now) > 0) free++
+  }))
+  return { free, total }
+}
+
+function weightedPick<T>(items: T[], weight: (x: T) => number): T | null {
+  const total = items.reduce((a, x) => a + weight(x), 0)
+  if (total <= 0) return null
+  let r = Math.random() * total
+  for (const x of items) {
+    r -= weight(x)
+    if (r <= 0) return x
+  }
+  return items[items.length - 1]
+}
+
+export interface Pick {
+  category: Category
+  word: string
+  key: string
+}
+
+/**
+ * Sceglie la parola evitando quelle uscite da poco.
+ * Con categoria "casuale" le categorie con più parole "fresche" sono più probabili e quella dell'ultima partita meno.
+ */
+export function pickWord(categoryId: string, history: WordHistory, now: number, lastCategoryId?: string): Pick {
+  const pool = categoryId === RANDOM_CATEGORY_ID || !CATEGORIES.find((c) => c.id === categoryId)
+    ? CATEGORIES
+    : [CATEGORIES.find((c) => c.id === categoryId)!]
+  const w = (c: Category, word: string) => wordWeight(history[wordKey(c.id, word)], now)
+
+  let category: Category | null = null
+  if (pool.length > 1) {
+    category = weightedPick(pool, (c) => c.words.reduce((a, x) => a + w(c, x), 0) * (c.id === lastCategoryId ? 0.35 : 1))
+  } else {
+    category = pool[0]
+  }
+
+  if (category) {
+    const cat = category
+    const word = weightedPick(cat.words, (x) => w(cat, x))
+    if (word) return { category: cat, word, key: wordKey(cat.id, word) }
+  }
+
+  // tutto a riposo (partite ravvicinatissime): usa la parola rimasta ferma da più tempo
+  const all = pool.flatMap((c) => c.words.map((word) => ({ c, word, last: history[wordKey(c.id, word)] ?? 0 })))
+  all.sort((a, b) => a.last - b.last)
+  const f = all[0]
+  return { category: f.c, word: f.word, key: wordKey(f.c.id, f.word) }
+}
+
+/** Aggiunge la parola uscita e dimentica quelle più vecchie di 7 giorni (il documento resta piccolo). */
+export function recordWord(history: WordHistory, key: string, now: number): WordHistory {
+  const out: WordHistory = {}
+  for (const [k, t] of Object.entries(history)) if (now - t < FORGET_MS) out[k] = t
+  out[key] = now
+  return out
 }

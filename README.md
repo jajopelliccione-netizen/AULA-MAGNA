@@ -135,6 +135,15 @@ così nessuno può crearsi un account con email e password.
    7. **Rivela**: animazione con numero e nome dell'impostore e la parola. Per ripartire con gli stessi giocatori basta di nuovo **Nuova partita** («Svuota lobby» li rimuove tutti).
    Nel gioco lo schermo mostra solo numeri (mai nickname) così nessuno è riconoscibile dal nome; i nickname li vede solo l'admin.
 
+## Parole: niente ripetizioni
+
+Ogni parola ricorda quando è uscita l'ultima volta (la memoria sta in `impostor/private`, leggibile solo dall'admin, e si pulisce da sola dopo 7 giorni):
+- **entro 8 ore** la stessa parola non può uscire di nuovo;
+- **tra 8 e 48 ore** può tornare, con una probabilità che cresce piano piano;
+- **oltre 48 ore** (o se non è mai uscita) ha la probabilità piena.
+
+Con la categoria «Casuale» le categorie con più parole «fresche» sono più probabili e quella dell'ultima partita meno. Nel pannello admin vedi quante parole sono disponibili ora e puoi **Azzerare** la memoria. Le soglie sono `REST_MS` e `FULL_MS` in `src/lib/words.ts`.
+
 ## Brand e logo
 
 Titolo e nome della scuola sono in `src/lib/brand.ts`. Il logo è `public/logo.png` (icona dell'ingranaggio, usata anche come icona della scheda; `public/logo-full.png` è la versione con la scritta):
