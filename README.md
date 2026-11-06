@@ -123,7 +123,7 @@ così nessuno può crearsi un account con email e password.
 
 1. PC del proiettore: apri `/schermo`, accedi, premi **Clicca per avviare** (schermo intero + audio sbloccato). Sul PC del gobbo apri `/gobbo` e fai lo stesso.
 2. Dal telefono/PC admin apri `/admin` e scegli la modalità: **Lobby → Karaoke / Impostore → Pausa**.
-3. **Karaoke**: la coda avanza da sola (fine video → 10 secondi di "Prossimo" → parte il successivo). L'admin può mettere in pausa, saltare, regolare il volume, riordinare trascinando ⠿, eliminare, aggiungere a mano, bloccare le prenotazioni, bannare un nickname.
+3. **Karaoke**: la coda avanza da sola (fine video → 10 secondi di "Prossimo" → parte il successivo). L'admin può mettere in pausa, **ricominciare la canzone da capo**, saltare, regolare il volume, riordinare trascinando ⠿, eliminare, aggiungere a mano, bloccare le prenotazioni, bannare un nickname.
    Quando tocca a un ragazzo il suo telefono mostra a schermo intero **TOCCA A TE! Vai sul palco** (e vibra).
 4. **Impostore** (a numeri e a giri):
    1. I ragazzi premono **Entra nella partita**.

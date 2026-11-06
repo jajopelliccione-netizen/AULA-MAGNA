@@ -133,6 +133,23 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // "Ricomincia": l'admin incrementa restartNonce -> il video riparte da 0:00 e il gobbo si riallinea
+  const restartRef = useRef(state.restartNonce)
+  useEffect(() => {
+    if (state.restartNonce === restartRef.current) return
+    restartRef.current = state.restartNonce
+    if (role !== 'master') return
+    const p = playerRef.current
+    const np = stateRef.current.nowPlaying
+    if (!p || !readyRef.current || !np || loadedRef.current !== np.queueId) return
+    p.seekTo?.(0, true)
+    if (activeRef.current) p.playVideo?.()
+    const base = Math.round(nowRef.current())
+    lastPub.current = { queueId: np.queueId, base, paused: false }
+    publishSync({ queueId: np.queueId, base, paused: false, pos: 0 }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.restartNonce])
+
   useEffect(sync, [state.nowPlaying?.queueId, state.playerStatus, state.volume, active, muted])
 
   // master: ripubblica la posizione se cambia (seek, buffering); follower: si riallinea

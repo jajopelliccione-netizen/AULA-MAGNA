@@ -44,6 +44,8 @@ export interface AppState {
   volume: number
   betweenEndsAt: number | null
   skipNonce: number
+  /** incrementato dall'admin per far ricominciare da capo la canzone in corso */
+  restartNonce: number
   gobboAudio: boolean
   sync: SyncInfo | null
   impostorConfig: ImpostorConfig
@@ -59,6 +61,7 @@ export const DEFAULT_STATE: AppState = {
   volume: 80,
   betweenEndsAt: null,
   skipNonce: 0,
+  restartNonce: 0,
   gobboAudio: false,
   sync: null,
   impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 },

@@ -45,6 +45,8 @@ export const logAction = (by: string, text: string, at: number) => patchState({ 
 export const setGobboAudio = (gobboAudio: boolean) => patchState({ gobboAudio })
 export const publishSync = (sync: SyncInfo | null) => patchState({ sync })
 export const requestSkip = () => patchState({ skipNonce: increment(1) })
+/** Fa ricominciare da 0:00 la canzone in corso (e la fa ripartire se era in pausa). */
+export const restartSong = () => patchState({ restartNonce: increment(1), playerStatus: 'playing' })
 
 /* ------------------------------- staff: coda ------------------------------- */
 
@@ -277,7 +279,7 @@ export async function ensureInitialDocs() {
   if (!s.exists()) {
     await setDoc(stateRef(), {
       mode: 'lobby', message: 'Torniamo subito!', nowPlaying: null, playerStatus: 'idle',
-      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, gobboAudio: false, sync: null,
+      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, restartNonce: 0, gobboAudio: false, sync: null,
       impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 }, lastAction: null,
     })
   }

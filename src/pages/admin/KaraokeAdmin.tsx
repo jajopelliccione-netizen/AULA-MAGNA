@@ -2,10 +2,10 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Ban, Captions, GripVertical, Lock, Mic, Pause, Play, Plus, SkipForward, Trash2, Unlock, Volume2 } from 'lucide-react'
+import { Ban, Captions, GripVertical, Lock, Mic, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2 } from 'lucide-react'
 import type { AppState, BannedDoc, PresenceDoc, QueueItem } from '../../lib/types'
 import {
-  addManualSong, banNickname, removeFromQueue, reorderQueue, requestSkip, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
+  addManualSong, banNickname, removeFromQueue, reorderQueue, requestSkip, restartSong, setBookingsOpen, setGobboAudio, setPlayerStatus, setVolume, unban,
 } from '../../lib/actions'
 import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
 import { useAct } from './act'
@@ -65,6 +65,10 @@ export default function KaraokeAdmin({ state, queue, presence, banned }: { state
             )}
             <button className="btn btn-danger py-3" disabled={!np && state.playerStatus !== 'between'} onClick={() => act('ha saltato la canzone', () => requestSkip())}><SkipForward className="w-4 h-4" fill="currentColor" /> Salta</button>
           </div>
+
+          <button className="btn py-3" disabled={!np} onClick={() => act('ha fatto ricominciare la canzone da capo', () => restartSong())}>
+            <RotateCcw className="w-4 h-4" /> Ricomincia da capo
+          </button>
 
           <label className="flex items-center gap-3">
             <Volume2 className="w-5 h-5 text-ice shrink-0" />
