@@ -45,10 +45,12 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
   }
 
   return (
-    <div className="grid lg:grid-cols-5 gap-5 items-start">
-      {/* ---------- colonna sinistra: palco e controlli ---------- */}
-      <div className="lg:col-span-2 flex flex-col gap-5">
-        <section className="card p-5 flex flex-col gap-4">
+    <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-5 lg:items-start">
+      <NowBar kind={kind} state={state} np={np} head={head} act={act} />
+
+      {/* ---------- colonna sinistra: palco e controlli (su telefono i blocchi si riordinano con "order") ---------- */}
+      <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-2">
+        <section className="order-2 lg:order-none card p-4 sm:p-5 flex flex-col gap-4">
           <h2 className="eyebrow text-xs">{L.stage}</h2>
           {np ? (
             <div className="flex gap-3 items-center">
@@ -105,7 +107,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
           )}
         </section>
 
-        <section className="card p-5 flex flex-col gap-1">
+        <section className="order-5 lg:order-none card p-4 sm:p-5 flex flex-col gap-1">
           <h2 className="eyebrow text-xs mb-2">Impostazioni</h2>
           <Switch
             on={state.bookingsOpen}
@@ -130,14 +132,14 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
           />}
         </section>
 
-        <AddSong kind={kind} />
+        <AddSong kind={kind} className="order-6 lg:order-none" />
       </div>
 
       {/* ---------- colonna destra: coda e ban ---------- */}
-      <div className="lg:col-span-3 flex flex-col gap-5">
-        <Requests pending={pending} serverNow={serverNow} />
+      <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-3">
+        <Requests pending={pending} serverNow={serverNow} className="order-1 lg:order-none" />
 
-        <section className="card p-5">
+        <section className="order-3 lg:order-none card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="display text-white text-2xl">Coda <span className="text-muted">({queue.length})</span></h2>
             <span className="text-xs text-muted">Trascina per riordinare</span>
@@ -154,7 +156,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
           </DndContext>
         </section>
 
-        <BanBox presence={presence} queue={queue} banned={banned} />
+        <BanBox presence={presence} queue={queue} banned={banned} className="order-7 lg:order-none" />
       </div>
     </div>
   )
@@ -182,11 +184,11 @@ function Row({ item, index, presence, queue }: { item: QueueItem; index: number;
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined }}
-      className={`flex items-center gap-2.5 rounded-2xl bg-white/[.045] border border-line p-2 ${isDragging ? 'ring-2 ring-brand shadow-2xl' : ''}`}
+      className={`flex items-center gap-1.5 sm:gap-2.5 rounded-2xl bg-white/[.045] border border-line p-1.5 sm:p-2 ${isDragging ? 'ring-2 ring-brand shadow-2xl' : ''}`}
     >
-      <button className="px-1 text-muted cursor-grab touch-none hover:text-white" aria-label="Trascina" {...attributes} {...listeners}><GripVertical className="w-5 h-5" /></button>
-      <span className="display text-xl w-6 text-center text-ice">{index + 1}</span>
-      <img src={item.thumbnail} alt="" className="w-20 aspect-video object-cover rounded-lg bg-surface-2" />
+      <button className="px-1.5 py-3 text-muted cursor-grab touch-none hover:text-white" aria-label="Trascina" {...attributes} {...listeners}><GripVertical className="w-5 h-5" /></button>
+      <span className="display text-lg sm:text-xl w-5 sm:w-6 text-center text-ice">{index + 1}</span>
+      <img src={item.thumbnail} alt="" className="hidden min-[400px]:block w-16 sm:w-20 aspect-video object-cover rounded-lg bg-surface-2" />
       <div className="min-w-0 flex-1">
         <div className="font-bold truncate">{item.nickname}{item.uid === 'manual' && <span className="ml-2 chip !py-0 !text-[.65rem]">admin</span>}</div>
         <div className="text-xs text-muted truncate">{item.title}</div>
@@ -199,7 +201,7 @@ function Row({ item, index, presence, queue }: { item: QueueItem; index: number;
   )
 }
 
-function AddSong({ kind }: { kind: Kind }) {
+function AddSong({ kind, className = '' }: { kind: Kind; className?: string }) {
   const act = useAct()
   const [link, setLink] = useState('')
   const [title, setTitle] = useState('')
@@ -223,7 +225,7 @@ function AddSong({ kind }: { kind: Kind }) {
     }
   }
   return (
-    <form onSubmit={submit} className="card p-5 flex flex-col gap-3">
+    <form onSubmit={submit} className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
       <h2 className="eyebrow text-xs">Aggiungi una canzone a mano (va subito in coda)</h2>
       <input className="input" placeholder="Link YouTube o ID video" value={link} onChange={(e) => setLink(e.target.value)} />
       <input className="input" placeholder="Titolo (facoltativo)" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -234,13 +236,13 @@ function AddSong({ kind }: { kind: Kind }) {
   )
 }
 
-function BanBox({ presence, queue, banned }: { presence: PresenceDoc[]; queue: QueueItem[]; banned: BannedDoc[] }) {
+function BanBox({ presence, queue, banned, className = '' }: { presence: PresenceDoc[]; queue: QueueItem[]; banned: BannedDoc[]; className?: string }) {
   const act = useAct()
   const [nick, setNick] = useState('')
   const nickBans = banned.filter((b) => !b.uid)
   const deviceBans = banned.filter((b) => b.uid)
   return (
-    <section className="card p-5 flex flex-col gap-3">
+    <section className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
       <h2 className="eyebrow text-xs">Nickname bannati</h2>
       <form
         className="flex gap-2"
@@ -273,10 +275,10 @@ async function unbanAll(b: BannedDoc, all: BannedDoc[]) {
 }
 
 /** Richieste in attesa: nessuna canzone entra in coda senza l'approvazione di un admin. */
-function Requests({ pending, serverNow }: { pending: QueueItem[]; serverNow: () => number }) {
+function Requests({ pending, serverNow, className = '' }: { pending: QueueItem[]; serverNow: () => number; className?: string }) {
   const act = useAct()
   return (
-    <section className={`card p-5 ${pending.length ? 'ring-1 ring-warn/60 shadow-[0_12px_50px_-24px_rgba(255,200,87,.9)]' : ''}`}>
+    <section className={`card p-4 sm:p-5 ${pending.length ? 'ring-1 ring-warn/60 shadow-[0_12px_50px_-24px_rgba(255,200,87,.9)]' : ''} ${className}`}>
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <h2 className="display text-white text-2xl flex items-center gap-2">
           Da approvare
@@ -291,18 +293,55 @@ function Requests({ pending, serverNow }: { pending: QueueItem[]; serverNow: () 
       {pending.length === 0 && <p className="text-muted text-sm rounded-xl bg-white/[.04] border border-line px-4 py-5 text-center">Nessuna richiesta in attesa. Quando qualcuno propone una canzone compare qui.</p>}
       <ul className="flex flex-col gap-2">
         {pending.map((r) => (
-          <li key={r.id} className="flex items-center gap-2.5 rounded-2xl bg-warn/[.07] border border-warn/30 p-2">
-            <img src={r.thumbnail} alt="" className="w-24 aspect-video object-cover rounded-lg bg-surface-2" />
-            <div className="min-w-0 flex-1">
-              <div className="font-bold truncate">{r.nickname}</div>
-              <div className="text-xs text-muted line-clamp-2">{r.title}</div>
-              <a className="text-[.7rem] text-ice underline underline-offset-2" href={`https://www.youtube.com/watch?v=${r.videoId}`} target="_blank" rel="noreferrer">Guarda su YouTube</a>
+          <li key={r.id} className="rounded-2xl bg-warn/[.07] border border-warn/30 p-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <img src={r.thumbnail} alt="" className="w-20 sm:w-24 aspect-video object-cover rounded-lg bg-surface-2 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-bold truncate">{r.nickname}</div>
+                <div className="text-xs text-muted line-clamp-2">{r.title}</div>
+                <a className="text-[.7rem] text-ice underline underline-offset-2" href={`https://www.youtube.com/watch?v=${r.videoId}`} target="_blank" rel="noreferrer">Guarda su YouTube</a>
+              </div>
             </div>
-            <button className="btn btn-success px-3 py-2.5" onClick={() => act(`ha approvato «${r.title}» di ${r.nickname}`, () => approveRequest(r.id, serverNow()))}><Check className="w-4 h-4" /> Approva</button>
-            <button className="btn btn-danger btn-icon" title="Rifiuta" onClick={() => act(`ha rifiutato «${r.title}» di ${r.nickname}`, () => rejectRequest(r.id))}><X className="w-4 h-4" /></button>
+            <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex">
+              <button className="btn btn-success px-3 py-3 sm:py-2.5" onClick={() => act(`ha approvato «${r.title}» di ${r.nickname}`, () => approveRequest(r.id, serverNow()))}><Check className="w-4 h-4" /> Approva</button>
+              <button className="btn btn-danger btn-icon" title="Rifiuta" onClick={() => act(`ha rifiutato «${r.title}» di ${r.nickname}`, () => rejectRequest(r.id))}><X className="w-4 h-4" /></button>
+            </div>
           </li>
         ))}
       </ul>
     </section>
+  )
+}
+
+/**
+ * Barra fissa in basso (solo telefono): comandi del brano sempre a portata di pollice,
+ * anche scorrendo una coda lunga.
+ */
+function NowBar({ kind, state, np, head, act }: { kind: Kind; state: AppState; np: AppState['nowPlaying']; head?: QueueItem; act: ReturnType<typeof useAct> }) {
+  if (!np && !head) return null
+  const paused = state.playerStatus === 'paused'
+  return (
+    <div className="md:hidden fixed inset-x-0 z-30 px-3 bottom-[calc(4rem+env(safe-area-inset-bottom))]">
+      <div className="card-solid !bg-surface-2/95 backdrop-blur-xl shadow-2xl ring-1 ring-brand/40 p-2.5 flex items-center gap-2.5">
+        <span className="grid place-items-center w-10 h-10 rounded-xl bg-brand/20 text-ice shrink-0">{kind === 'karaoke' ? <Mic className="w-5 h-5" /> : <Music2 className="w-5 h-5" />}</span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="text-[.62rem] font-bold uppercase tracking-widest text-ice">{np ? (paused ? 'In pausa' : kind === 'karaoke' ? 'Sul palco' : 'In onda') : 'Prossimo'}</div>
+          <div className="font-bold truncate">{(np ?? head)?.nickname}</div>
+          <div className="text-xs text-muted truncate">{(np ?? head)?.title}</div>
+        </div>
+        {np ? (
+          <>
+            {paused ? (
+              <button className="btn btn-success btn-icon" aria-label="Riprendi" onClick={() => act('ha ripreso il video', () => setPlayerStatus('playing'))}><Play className="w-5 h-5" fill="currentColor" /></button>
+            ) : (
+              <button className="btn btn-secondary btn-icon" aria-label="Pausa" onClick={() => act('ha messo in pausa il video', () => setPlayerStatus('paused'))}><Pause className="w-5 h-5" fill="currentColor" /></button>
+            )}
+            <button className="btn btn-danger btn-icon" aria-label="Salta" onClick={() => act('ha saltato la canzone', () => requestSkip())}><SkipForward className="w-5 h-5" fill="currentColor" /></button>
+          </>
+        ) : head ? (
+          <button className="btn btn-primary px-4 py-3" onClick={() => act(`ha avviato «${head.title}» di ${head.nickname}`, () => startNextSong(head))}><PlayCircle className="w-5 h-5" /> Avvia</button>
+        ) : null}
+      </div>
+    </div>
   )
 }

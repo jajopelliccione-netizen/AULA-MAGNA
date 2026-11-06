@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { signOut } from 'firebase/auth'
-import { Activity, Captions, Home, LogOut, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, Captions, Home, LogOut, Menu, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { StaffGate } from '../../components/StaffGate'
 import { UpdateBanner } from '../../components/UpdateBanner'
@@ -54,6 +54,7 @@ function AdminInner() {
   const [feed, setFeed] = useState<LastAction[]>([])
   const [toast, setToast] = useState<LastAction | null>(null)
   const [showFeed, setShowFeed] = useState(false)
+  const [menu, setMenu] = useState(false)
   const lastSeen = useRef<string | null>(null)
   const nameRef = useRef(name)
   nameRef.current = name
@@ -104,48 +105,64 @@ function AdminInner() {
 
   if (!ready) return <div className="min-h-full bg-stage grid place-items-center text-muted">Carico…</div>
 
+  const tabs = [
+    { id: 'karaoke' as const, label: 'Karaoke', Icon: Mic, n: karaokePending.length },
+    { id: 'music' as const, label: 'Musica', Icon: Music2, n: musicPending.length },
+    { id: 'impostor' as const, label: 'Impostore', Icon: VenetianMask, n: 0 },
+  ]
+
   return (
     <ActCtx.Provider value={ctxValue}>
-      <div className="min-h-full bg-stage">
-        <header className="sticky top-0 z-30 bg-ink/80 backdrop-blur-xl border-b border-line">
-          <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
-            <BrandTitle size={38} />
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`chip ${live ? 'border-good/40 bg-good/10 text-good' : 'border-bad/50 bg-bad/15 text-[#ff9aab]'}`} title={live ? 'I dati si aggiornano in tempo reale' : 'Sei offline: i dati potrebbero non essere aggiornati'}>
-                {live ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />} {live ? 'In tempo reale' : 'Offline'}
+      <div className="min-h-full bg-stage overflow-x-hidden">
+        <header className="sticky top-0 z-30 bg-ink/85 backdrop-blur-xl border-b border-line pt-[env(safe-area-inset-top)]">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1"><BrandTitle size={34} compact /></div>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <span className={`chip !px-2.5 ${live ? 'border-good/40 bg-good/10 text-good' : 'border-bad/50 bg-bad/15 text-[#ff9aab]'}`} title={live ? 'I dati si aggiornano in tempo reale' : 'Sei offline: i dati potrebbero non essere aggiornati'}>
+                {live ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{live ? 'In tempo reale' : 'Offline'}</span>
               </span>
-              <span className="chip"><span className="dot-live" /> {count} online</span>
-              <label className="chip !py-0.5" title="Il tuo nome: compare agli altri admin quando fai qualcosa">
-                <UserRound className="w-3.5 h-3.5 text-ice" />
-                <input className="bg-transparent outline-none w-24 text-xs font-semibold" value={name} maxLength={16} onChange={(e) => saveName(e.target.value)} aria-label="Il tuo nome" />
-              </label>
-              <button className={`btn text-sm py-2 px-3 ${showFeed ? 'btn-secondary' : ''}`} onClick={() => setShowFeed((v) => !v)}><Activity className="w-4 h-4" /> Attività</button>
-              <a href="/schermo" target="_blank" rel="noreferrer" className="btn text-sm py-2 px-3"><Monitor className="w-4 h-4" /> Proiettore</a>
-              <a href="/gobbo" target="_blank" rel="noreferrer" className="btn text-sm py-2 px-3"><Captions className="w-4 h-4" /> Gobbo</a>
-              <button className="btn text-sm py-2 px-3" onClick={() => signOut(auth)}><LogOut className="w-4 h-4" /> Esci</button>
+              <span className="chip !px-2.5"><span className="dot-live" /> {count}<span className="hidden sm:inline"> online</span></span>
+
+              {/* da tablet in su: tutti i comandi in barra */}
+              <div className="hidden md:flex items-center gap-2">
+                <label className="chip !py-0.5" title="Il tuo nome: compare agli altri admin quando fai qualcosa">
+                  <UserRound className="w-3.5 h-3.5 text-ice" />
+                  <input className="bg-transparent outline-none w-24 text-xs font-semibold" value={name} maxLength={16} onChange={(e) => saveName(e.target.value)} aria-label="Il tuo nome" />
+                </label>
+                <button className={`btn text-sm py-2 px-3 ${showFeed ? 'btn-secondary' : ''}`} onClick={() => setShowFeed((v) => !v)}><Activity className="w-4 h-4" /> Attività</button>
+                <a href="/schermo" target="_blank" rel="noreferrer" className="btn text-sm py-2 px-3"><Monitor className="w-4 h-4" /> Proiettore</a>
+                <a href="/gobbo" target="_blank" rel="noreferrer" className="btn text-sm py-2 px-3"><Captions className="w-4 h-4" /> Gobbo</a>
+                <button className="btn text-sm py-2 px-3" onClick={() => signOut(auth)}><LogOut className="w-4 h-4" /> Esci</button>
+              </div>
+
+              {/* telefono: un solo pulsante menu */}
+              <button className="btn btn-icon md:hidden relative" onClick={() => setMenu(true)} aria-label="Menu">
+                <Menu className="w-5 h-5" />
+                {feed.length > 0 && !showFeed && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand" />}
+              </button>
             </div>
           </div>
           {!live && (
-            <div className="bg-bad/20 border-t border-bad/40 text-center text-sm font-semibold py-1.5 text-[#ffb3c0]">
-              Connessione assente: i dati mostrati potrebbero non essere aggiornati. Si ricollega da sola.
+            <div className="bg-bad/20 border-t border-bad/40 text-center text-xs sm:text-sm font-semibold py-1.5 px-3 text-[#ffb3c0]">
+              Connessione assente: i dati potrebbero non essere aggiornati. Si ricollega da sola.
             </div>
           )}
         </header>
 
         {showFeed && (
-          <div className="max-w-6xl mx-auto px-4 pt-4">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 pt-3">
             <section className="card p-4">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="eyebrow text-xs">Attività degli admin</h2>
                 <button className="btn btn-icon !p-1.5" onClick={() => setShowFeed(false)} aria-label="Chiudi"><X className="w-4 h-4" /></button>
               </div>
               {feed.length === 0 && <p className="text-sm text-muted">Nessuna attività finora. Le azioni di tutti gli admin compaiono qui in diretta.</p>}
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-1.5">
                 {feed.map((a, i) => (
-                  <li key={i} className="flex items-baseline gap-2 text-sm">
-                    <span className="text-muted tabular-nums text-xs">{clock(a.at)}</span>
-                    <b className="text-white">{a.by}</b>
-                    <span className="text-muted">{a.text}</span>
+                  <li key={i} className="text-sm leading-snug">
+                    <span className="text-muted tabular-nums text-xs mr-2">{clock(a.at)}</span>
+                    <b className="text-white">{a.by}</b> <span className="text-muted">{a.text}</span>
                   </li>
                 ))}
               </ul>
@@ -153,14 +170,14 @@ function AdminInner() {
           </div>
         )}
 
-        <main className="max-w-6xl mx-auto p-4 pb-16 flex flex-col gap-5">
+        <main className="max-w-6xl mx-auto p-3 sm:p-4 pb-48 md:pb-16 flex flex-col gap-4 sm:gap-5">
           {/* ---------- cosa mostra lo schermo ---------- */}
-          <section className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="display text-white text-2xl">Cosa mostra lo schermo</h2>
+          <section className="card p-3.5 sm:p-5">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="display text-white text-xl sm:text-2xl">Cosa mostra lo schermo</h2>
               <span className="eyebrow text-xs hidden sm:block">In onda ora: {MODES.find((m) => m.id === state.mode)?.label}</span>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
               {MODES.map((m) => {
                 const on = state.mode === m.id
                 const Icon = m.icon
@@ -168,31 +185,33 @@ function AdminInner() {
                   <button
                     key={m.id}
                     onClick={() => act(`ha messo lo schermo su ${m.label}`, () => switchMode(m.id, state))}
-                    className={`relative text-left rounded-2xl border p-4 transition ${on ? 'bg-brand/18 border-brand ring-1 ring-brand shadow-[0_12px_40px_-16px_rgba(47,147,240,.9)]' : 'bg-white/[.04] border-line hover:bg-white/[.08]'}`}
+                    aria-pressed={on}
+                    className={`relative flex flex-col items-center text-center lg:items-start lg:text-left rounded-2xl border px-1 py-3 lg:p-4 transition min-w-0 ${on ? 'bg-brand/20 border-brand ring-1 ring-brand shadow-[0_12px_40px_-16px_rgba(47,147,240,.9)]' : 'bg-white/[.04] border-line hover:bg-white/[.08]'}`}
                   >
-                    {on && <span className="absolute top-3 right-3 chip border-good/40 bg-good/10 text-good !py-0.5 !text-[.65rem]"><span className="dot-live !w-1.5 !h-1.5" /> In onda</span>}
-                    <Icon className={`w-7 h-7 ${on ? 'text-ice' : 'text-muted'}`} />
-                    <div className="display text-white text-2xl mt-3">{m.label}</div>
-                    <div className="text-xs text-muted mt-0.5">{m.hint}</div>
+                    {on && <span className="absolute top-1.5 right-1.5 lg:hidden dot-live" />}
+                    {on && <span className="hidden lg:flex absolute top-3 right-3 chip border-good/40 bg-good/10 text-good !py-0.5 !text-[.65rem]"><span className="dot-live !w-1.5 !h-1.5" /> In onda</span>}
+                    <Icon className={`w-6 h-6 lg:w-7 lg:h-7 ${on ? 'text-ice' : 'text-muted'}`} />
+                    <div className="display text-white text-[.82rem] sm:text-lg lg:text-2xl leading-none mt-1.5 lg:mt-3 max-w-full">{m.label}</div>
+                    <div className="text-xs text-muted mt-0.5 hidden lg:block">{m.hint}</div>
                   </button>
                 )
               })}
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 sm:mt-4 flex gap-2">
               <input
                 className="input"
-                placeholder="Messaggio per la pausa (es. Torniamo tra 10 minuti)"
+                placeholder="Messaggio per la pausa"
                 value={msg}
                 onChange={(e) => { setMsg(e.target.value); setMsgDirty(true) }}
                 maxLength={120}
               />
-              <button className="btn btn-secondary" onClick={() => act(`ha cambiato il messaggio di pausa: «${msg}»`, () => setPauseMessage(msg)).then(() => setMsgDirty(false))}>Salva</button>
+              <button className="btn btn-secondary shrink-0" onClick={() => act(`ha cambiato il messaggio di pausa: «${msg}»`, () => setPauseMessage(msg)).then(() => setMsgDirty(false))}>Salva</button>
             </div>
           </section>
 
-          {/* ---------- schede ---------- */}
-          <div className="inline-flex self-start rounded-2xl bg-white/[.05] border border-line p-1 flex-wrap">
-            {([['karaoke', 'Karaoke', Mic, karaokePending.length], ['music', 'Musica', Music2, musicPending.length], ['impostor', 'Impostore', VenetianMask, 0]] as const).map(([id, label, Icon, n]) => (
+          {/* ---------- schede (da tablet in su; su telefono sono nella barra in basso) ---------- */}
+          <div className="hidden md:inline-flex self-start rounded-2xl bg-white/[.05] border border-line p-1">
+            {tabs.map(({ id, label, Icon, n }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
@@ -209,8 +228,43 @@ function AdminInner() {
           {tab === 'impostor' && <ImpostorAdmin game={game} players={players} serverNow={serverNow} config={config} onConfig={changeConfig} />}
         </main>
 
+        {/* ---------- barra di navigazione in basso (telefono) ---------- */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-ink/92 backdrop-blur-xl border-t border-line pb-safe" aria-label="Sezioni">
+          <div className="grid grid-cols-3">
+            {tabs.map(({ id, label, Icon, n }) => (
+              <button key={id} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`relative flex flex-col items-center gap-0.5 py-2.5 text-[.7rem] font-bold transition ${tab === id ? 'text-white' : 'text-muted'}`} aria-current={tab === id}>
+                {tab === id && <span className="absolute top-0 inset-x-6 h-0.5 rounded-full bg-brand" />}
+                <span className="relative"><Icon className={`w-6 h-6 ${tab === id ? 'text-ice' : ''}`} />{n > 0 && <span className="absolute -top-1.5 -right-2.5 grid place-items-center min-w-4 h-4 px-1 rounded-full bg-warn text-ink text-[.65rem] font-black">{n}</span>}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {/* ---------- menu (telefono) ---------- */}
+        {menu && (
+          <div className="md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setMenu(false)}>
+            <div className="absolute bottom-0 inset-x-0 card-solid rounded-b-none rounded-t-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col gap-3 anim-slide" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h2 className="display text-white text-2xl">Menu</h2>
+                <button className="btn btn-icon" onClick={() => setMenu(false)} aria-label="Chiudi"><X className="w-5 h-5" /></button>
+              </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold flex items-center gap-2"><UserRound className="w-4 h-4 text-ice" /> Il tuo nome</span>
+                <input className="input" value={name} maxLength={16} onChange={(e) => saveName(e.target.value)} placeholder="Compare agli altri admin" />
+              </label>
+              <button className="btn py-3.5 justify-start" onClick={() => { setShowFeed(true); setMenu(false); window.scrollTo({ top: 0 }) }}><Activity className="w-5 h-5" /> Attività degli altri admin</button>
+              <div className="grid grid-cols-2 gap-2">
+                <a href="/schermo" target="_blank" rel="noreferrer" className="btn py-3.5"><Monitor className="w-5 h-5" /> Proiettore</a>
+                <a href="/gobbo" target="_blank" rel="noreferrer" className="btn py-3.5"><Captions className="w-5 h-5" /> Gobbo</a>
+              </div>
+              <button className="btn btn-danger py-3.5" onClick={() => signOut(auth)}><LogOut className="w-5 h-5" /> Esci</button>
+            </div>
+          </div>
+        )}
+
         {toast && (
-          <div className="fixed top-20 right-4 z-50 card px-4 py-3 shadow-2xl max-w-xs anim-slide ring-1 ring-brand/60">
+          <div className="fixed top-16 inset-x-3 sm:inset-x-auto sm:right-4 z-50 card px-4 py-3 shadow-2xl sm:max-w-xs anim-slide ring-1 ring-brand/60">
             <div className="eyebrow text-[.65rem]">{toast.by}</div>
             <div className="text-sm font-semibold mt-0.5">{toast.text}</div>
           </div>

@@ -38,9 +38,63 @@ export default function ImpostorAdmin({ game, players, serverNow, config, onConf
   const current = finished ? null : game.order[game.turnIndex]
   const canConfigure = game.status === 'lobby' || game.status === 'reveal'
 
+  const voters = players.filter((p) => p.vote).length
+  // barra fissa in basso (solo telefono): l'azione della fase corrente sempre a portata di pollice
+  const bar = (
+    <div className="md:hidden fixed inset-x-0 z-30 px-3 bottom-[calc(4rem+env(safe-area-inset-bottom))]">
+      <div className="card-solid !bg-surface-2/95 backdrop-blur-xl shadow-2xl ring-1 ring-brand/40 p-2.5 flex items-center gap-2.5">
+        {(game.status === 'lobby' || game.status === 'reveal') && (
+          <>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="text-[.62rem] font-bold uppercase tracking-widest text-ice">{game.status === 'reveal' ? 'Partita finita' : 'Lobby'}</div>
+              <div className="font-bold">{players.length} {players.length === 1 ? 'giocatore' : 'giocatori'}</div>
+            </div>
+            <button className="btn btn-success px-4 py-3" disabled={busy || players.length < 3} onClick={() => run(() => act('ha avviato una nuova partita', () => startRound({ categoryId, impostors, readingSec }, serverNow())))}><Play className="w-5 h-5" fill="currentColor" /> Nuova partita</button>
+          </>
+        )}
+        {game.status === 'reading' && (
+          <>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="text-[.62rem] font-bold uppercase tracking-widest text-ice">Lettura parola</div>
+              <div className="font-bold truncate">{game.category}</div>
+            </div>
+            <button className="btn btn-primary px-4 py-3" disabled={busy} onClick={() => run(() => act('ha iniziato il primo giro', startTurns))}><Play className="w-5 h-5" fill="currentColor" /> Inizia 1° giro</button>
+          </>
+        )}
+        {game.status === 'turns' && (
+          <>
+            <button className="btn btn-icon" aria-label="Indietro" disabled={busy || game.turnIndex <= 0} onClick={() => run(() => act('è tornato al giocatore precedente', () => moveTurn(game, -1)))}><ChevronLeft className="w-5 h-5" /></button>
+            <div className="min-w-0 flex-1 leading-tight text-center">
+              <div className="text-[.62rem] font-bold uppercase tracking-widest text-ice">Giro {game.giro}</div>
+              <div className="display text-white text-2xl">{finished ? 'Concluso' : `Giocatore ${current}`}</div>
+            </div>
+            {finished ? (
+              <>
+                <button className="btn btn-success btn-icon" aria-label="Altro giro" disabled={busy} onClick={() => run(() => act(`ha avviato il giro ${game.giro + 1}`, () => nextGiro(game.giro)))}><RotateCw className="w-5 h-5" /></button>
+                <button className="btn btn-secondary px-3 py-3" disabled={busy} onClick={() => run(() => act('ha avviato il voto', startVoting))}><Vote className="w-5 h-5" /> Voto</button>
+              </>
+            ) : (
+              <button className="btn btn-primary px-4 py-3" disabled={busy} onClick={() => run(() => act('ha chiamato il giocatore successivo', () => moveTurn(game, 1)))}>Prossimo <ChevronRight className="w-5 h-5" /></button>
+            )}
+          </>
+        )}
+        {game.status === 'voting' && (
+          <>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="text-[.62rem] font-bold uppercase tracking-widest text-ice">Votazione</div>
+              <div className="font-bold">{voters}/{players.length} hanno votato</div>
+            </div>
+            <button className="btn btn-primary px-4 py-3" disabled={busy} onClick={() => run(() => act('ha rivelato l’impostore', revealRound))}><Eye className="w-5 h-5" /> Rivela</button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+
   return (
-    <div className="grid lg:grid-cols-5 gap-5 items-start">
-      <section className="lg:col-span-2 card p-5 flex flex-col gap-4">
+    <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-5 lg:items-start">
+      {bar}
+      <section className="lg:col-span-2 card p-4 sm:p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="display text-white text-2xl">Partita</h2>
           <span className="chip border-brand/40 bg-brand/15 text-ice">{STATUS_LABEL[game.status]}</span>
@@ -140,7 +194,7 @@ export default function ImpostorAdmin({ game, players, serverNow, config, onConf
         )}
       </section>
 
-      <section className="lg:col-span-3 card p-5">
+      <section className="lg:col-span-3 card p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="display text-white text-2xl">Giocatori <span className="text-muted">({players.length})</span></h2>
           <button className="btn text-sm py-2 px-3" disabled={busy} onClick={() => confirm('Svuotare la lobby e rimuovere tutti i giocatori?') && run(() => act('ha svuotato la lobby', resetLobby))}><RotateCcw className="w-4 h-4" /> Svuota lobby</button>

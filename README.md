@@ -148,6 +148,15 @@ così nessuno può crearsi un account con email e password.
    7. **Rivela**: animazione con numero e nome dell'impostore e la parola. Per ripartire con gli stessi giocatori basta di nuovo **Nuova partita** («Svuota lobby» li rimuove tutti).
    Nel gioco lo schermo mostra solo numeri (mai nickname) così nessuno è riconoscibile dal nome; i nickname li vede solo l'admin.
 
+## Pannello admin da telefono
+
+Il pannello è pensato per essere usato comodamente anche da smartphone:
+- **Barra in basso** con le tre sezioni (Karaoke, Musica, Impostore) e il numero di richieste da approvare.
+- **Comandi sempre a portata di pollice**: una barra fissa sopra la navigazione mostra la canzone sul palco con Pausa/Riprendi e Salta (o Avvia), oppure nell'impostore il giocatore che sta parlando con Indietro/Prossimo, Altro giro, Avvia voto e Rivela.
+- Sezioni **ordinate per importanza**: prima le richieste da approvare, poi il palco, la coda, le impostazioni, l'aggiunta a mano e i ban.
+- Il **menu** (☰ in alto) contiene il tuo nome, l'attività degli altri admin, i link a proiettore e gobbo e l'uscita.
+- Su tablet e computer il layout passa a due colonne con tutti i comandi in barra.
+
 ## Più admin insieme
 
 Il pannello è sempre in tempo reale su qualsiasi dispositivo: se un admin aggiunge una canzone, cambia modalità, fa avanzare il giro dell'impostore o cambia le impostazioni di «Nuova partita», tutti gli altri pannelli (e schermi e telefoni) lo vedono subito.
