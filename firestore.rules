@@ -3,7 +3,7 @@ rules_version = '2';
 // ============================================================================
 //  Aula Magna · Occupazione 2026 · Galileo Galilei
 //
-//  >>> PASSO OBBLIGATORIO: sostituisci PASTE_ADMIN_UID_HERE con l'UID dell'utente
+//  >>> PASSO OBBLIGATORIO: sostituisci gAd9mAHVbcdV9V1jzuCXJZhitLn2 con l'UID dell'utente
 //  >>> admin (Firebase Console > Authentication > Utenti > colonna "UID utente").
 //  >>> Puoi mettere più UID (es. admin + account dedicato al proiettore).
 // ============================================================================
@@ -19,7 +19,7 @@ service cloud.firestore {
     function isStaff() {
       return signedIn()
         && request.auth.token.firebase.sign_in_provider == 'password'
-        && request.auth.uid in ['PASTE_ADMIN_UID_HERE'];
+        && request.auth.uid in ['gAd9mAHVbcdV9V1jzuCXJZhitLn2'];
     }
 
     function validNick(n) {
