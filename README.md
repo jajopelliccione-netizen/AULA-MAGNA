@@ -132,6 +132,10 @@ crea altri utenti in Firebase Authentication e aggiungi i loro UID sia in `fires
 Per sicurezza, in Firebase → Authentication → Impostazioni → **Azioni dell'utente** disattiva «Abilita creazione (registrazione)»:
 così nessuno può crearsi un account con email e password.
 
+## Audio su iPad / iPhone
+
+Safari su iPad e iPhone blocca l'avvio automatico dei video con l'audio. Per il proiettore è meglio un **computer con Chrome** (dopo il clic su «Clicca per avviare» tutto parte da solo). Se usi un iPad, l'app ci prova comunque: quando una canzone non parte da sola, la fa partire **senza audio** e mostra un grande pulsante **«Tocca per attivare l'audio»**; basta un tocco sullo schermo. Su iOS inoltre il volume non si regola dal sito (si usano i tasti dell'iPad o l'impianto audio).
+
 ## Come si usa la serata
 
 1. PC del proiettore: apri `/schermo`, accedi, premi **Clicca per avviare** (schermo intero + audio sbloccato). Sul PC del gobbo apri `/gobbo` e fai lo stesso.

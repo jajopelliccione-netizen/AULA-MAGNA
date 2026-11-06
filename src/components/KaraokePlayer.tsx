@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Volume2, VolumeX } from 'lucide-react'
 import { loadYT } from '../lib/yt'
 import { publishSync } from '../lib/actions'
 import type { AppState } from '../lib/types'
@@ -26,6 +27,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const readyRef = useRef(false)
   const loadedRef = useRef<string | null>(null)
   const lastPub = useRef<{ queueId: string; base: number; paused: boolean } | null>(null)
+  // Safari/iPad blocca l'avvio automatico con audio: in quel caso il video parte muto e serve un tocco
+  const mutedFallback = useRef(false)
+  const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [tap, setTap] = useState<'none' | 'unmute' | 'native'>('none')
 
   const stateRef = useRef(state)
   const activeRef = useRef(active)
@@ -45,7 +50,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     if (role === 'follower' && mutedRef.current) {
       p.mute?.()
     } else {
-      p.unMute?.()
+      if (!mutedFallback.current) p.unMute?.()
       p.setVolume?.(s.volume)
     }
   }
@@ -70,6 +75,47 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     publishSync({ queueId: np.queueId, base, paused, pos }).catch(() => {})
   }
 
+  const fallbackMuted = () => {
+    const p = playerRef.current
+    if (!p || !readyRef.current) return
+    mutedFallback.current = true
+    p.mute?.()
+    p.playVideo?.()
+    setTap('unmute')
+  }
+
+  // se dopo qualche secondo il video non sta partendo, il browser ha bloccato l'avvio automatico
+  const armBlockCheck = (queueId: string) => {
+    clearTimeout(blockTimer.current)
+    blockTimer.current = setTimeout(() => {
+      const p = playerRef.current
+      const s = stateRef.current
+      if (!p || !readyRef.current || loadedRef.current !== queueId) return
+      if (!activeRef.current || s.playerStatus !== 'playing') return
+      const st = p.getPlayerState?.()
+      if (st === 1 || st === 3) return // in riproduzione o in caricamento
+      fallbackMuted()
+    }, 3500)
+  }
+
+  const onTap = () => {
+    const p = playerRef.current
+    if (!p) return
+    mutedFallback.current = false
+    p.unMute?.()
+    p.setVolume?.(stateRef.current.volume)
+    p.playVideo?.()
+    setTimeout(() => {
+      if (p.isMuted?.()) {
+        // il browser non ha concesso l'audio: si rende toccabile il lettore di YouTube
+        mutedFallback.current = true
+        setTap('native')
+      } else {
+        setTap('none')
+      }
+    }, 900)
+  }
+
   const sync = () => {
     const p = playerRef.current
     if (!p || !readyRef.current) return
@@ -81,6 +127,9 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         p.stopVideo?.()
         loadedRef.current = null
         lastPub.current = null
+        clearTimeout(blockTimer.current)
+        mutedFallback.current = false
+        setTap('none')
       }
       return
     }
@@ -89,9 +138,16 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       p.loadVideoById(start && start > 2 ? { videoId: np.videoId, startSeconds: start } : np.videoId)
       loadedRef.current = np.queueId
       lastPub.current = null
+      mutedFallback.current = false
+      setTap('none')
     }
-    if (!activeRef.current || s.playerStatus === 'paused') p.pauseVideo?.()
-    else p.playVideo?.()
+    if (!activeRef.current || s.playerStatus === 'paused') {
+      p.pauseVideo?.()
+      clearTimeout(blockTimer.current)
+    } else {
+      p.playVideo?.()
+      armBlockCheck(np.queueId)
+    }
   }
 
   // creazione del player (una sola volta)
@@ -115,6 +171,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
             if (!np || np.queueId !== loadedRef.current) return
             if (e.data === YT.PlayerState.ENDED && role === 'master') cbRef.current.onEnded?.(np.queueId)
             else if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) publish(e.data === YT.PlayerState.PAUSED)
+          },
+          onAutoplayBlocked: () => {
+            const np = stateRef.current.nowPlaying
+            if (np && np.queueId === loadedRef.current && activeRef.current) fallbackMuted()
           },
           onError: () => {
             const np = stateRef.current.nowPlaying
@@ -172,5 +232,23 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role])
 
-  return <div ref={hostRef} className="yt-host absolute inset-0" />
+  return (
+    <>
+      <div ref={hostRef} className={`yt-host absolute inset-0 ${tap === 'native' ? 'interactive' : ''}`} />
+      {tap === 'unmute' && (
+        <button className="absolute inset-0 z-20 grid place-items-center bg-black/55 backdrop-blur-[2px]" onClick={onTap}>
+          <span className="card flex flex-col items-center gap-[1.4vh] px-[3vw] py-[3vh] ring-1 ring-brand/60">
+            <VolumeX className="w-[6vw] h-[6vw] text-ice" />
+            <span className="display text-white text-[3.4vw]">Tocca per attivare l’audio</span>
+            <span className="text-[1.4vw] text-muted">Il browser ha bloccato l’avvio automatico</span>
+          </span>
+        </button>
+      )}
+      {tap === 'native' && (
+        <div className="absolute top-[1.5vw] left-1/2 -translate-x-1/2 z-20 chip !px-[1.4vw] !py-[.8vh] text-[1.5vw] border-brand/60 bg-brand/25 text-white pointer-events-none">
+          <Volume2 className="w-[1.7vw] h-[1.7vw]" /> Tocca l’icona dell’audio sul video
+        </div>
+      )}
+    </>
+  )
 }
