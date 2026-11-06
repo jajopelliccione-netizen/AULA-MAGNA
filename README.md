@@ -101,7 +101,8 @@ npm run preview    # prova la build
    Se serve, aggiungi anche `NODE_VERSION` = `20` o superiore.
 5. **Save and Deploy**. Il file `public/_redirects` (`/* /index.html 200`) fa funzionare `/schermo` e `/admin`.
 6. Dopo il deploy: aggiungi il dominio `*.pages.dev` ai **domini autorizzati di Firebase Auth** e al **referrer della chiave YouTube** (passi 2 e 4).
-7. Le variabili `VITE_` vengono incluse in fase di build: se le cambi, rifai il deploy.
+7. Le variabili `VITE_` vengono incluse in fase di build: se le cambi, rifai il deploy (Deployments → ⋯ → Retry deployment).
+8. Cloudflare pubblica a ogni push sul *Production branch* impostato in Settings → Builds → Branch control. Cambiare ramo non basta: serve un nuovo commit su quel ramo.
 
 Oppure da terminale: `npm run build && npx wrangler pages deploy dist --project-name aula-magna`.
 
