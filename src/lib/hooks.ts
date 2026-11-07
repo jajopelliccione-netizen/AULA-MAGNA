@@ -212,3 +212,18 @@ export function useLive(): boolean {
   }, [])
   return online && !fromCache
 }
+
+/** true se la connessione è assente da più di 4 secondi (evita il lampeggio all'avvio). */
+export function useOfflineBanner(): boolean {
+  const live = useLive()
+  const [late, setLate] = useState(false)
+  useEffect(() => {
+    if (live) {
+      setLate(false)
+      return
+    }
+    const t = setTimeout(() => setLate(true), 4000)
+    return () => clearTimeout(t)
+  }, [live])
+  return late
+}

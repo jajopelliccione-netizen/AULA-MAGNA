@@ -1,13 +1,30 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, Clock, Hourglass, LogOut, Megaphone, Trophy, UserCheck, VenetianMask, Vote } from 'lucide-react'
-import { useDoc, useGame, usePlayers, useNow } from '../../lib/hooks'
+import { Check, Clock, Hourglass, LogOut, Megaphone, Trophy, UserCheck, VenetianMask, Vote, WifiOff } from 'lucide-react'
+import { doc, getDocFromServer } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
+import { useWakeLock } from '../../lib/wakelock'
+import { useDoc, useGame, useOfflineBanner, usePlayers, useNow } from '../../lib/hooks'
 import { castVote, joinGame, leaveGame } from '../../lib/actions'
 import { plural } from '../../lib/util'
 import type { Game, PlayerDoc, RoleDoc } from '../../lib/types'
 
 const NO_ROLE: RoleDoc = { role: 'crew', word: null, category: '', round: -1 }
 
-export default function ImpostorView({ uid, nick }: { uid: string; nick: string }) {
+export default function ImpostorView(props: { uid: string; nick: string }) {
+  const offline = useOfflineBanner()
+  return (
+    <>
+      {offline && (
+        <div className="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-warn/12 border border-warn/40 px-3 py-2 text-xs font-semibold text-warn">
+          <WifiOff className="w-4 h-4 shrink-0" /> Connessione instabile: gli aggiornamenti potrebbero arrivare in ritardo.
+        </div>
+      )}
+      <ImpostorInner {...props} />
+    </>
+  )
+}
+
+function ImpostorInner({ uid, nick }: { uid: string; nick: string }) {
   const { data: game, ready } = useGame()
   const { players } = usePlayers()
   const joined = players.some((p) => p.id === uid)
@@ -17,6 +34,7 @@ export default function ImpostorView({ uid, nick }: { uid: string; nick: string 
   const role = roleRaw.round === game.round ? roleRaw : null
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  useWakeLock(joined)
 
   const join = async () => {
     setBusy(true)
@@ -151,28 +169,51 @@ export function TurnsView({ game, number, category }: { game: Game; number: numb
   const done = myPos >= 0 && myPos < game.turnIndex
   const wait = myPos - game.turnIndex
   const current = finished ? null : game.order[game.turnIndex]
-
-  const buzzed = useRef('')
+  const soon = !finished && wait === 1
   const key = `${game.round}:${game.giro}`
+  const [dismissed, setDismissed] = useState('')
+  const showCall = mine && dismissed !== key
+
+  // vibrazione: "sei il prossimo" (breve) e "tocca a te" (lunga)
+  const buzzed = useRef('')
   useEffect(() => {
-    if (mine && buzzed.current !== key) {
-      buzzed.current = key
-      try { navigator.vibrate?.([250, 120, 250, 120, 500]) } catch { /* ok */ }
+    const tag = mine ? `${key}:mine` : soon ? `${key}:soon` : ''
+    if (tag && buzzed.current !== tag) {
+      buzzed.current = tag
+      try { navigator.vibrate?.(mine ? [250, 120, 250, 120, 500] : [150, 80, 150]) } catch { /* ok */ }
     }
-  }, [mine, key])
+  }, [mine, soon, key])
+
+  // vicino al proprio turno si controlla il server ogni 3 secondi, così un ascolto rimasto indietro non fa perdere l'avviso
+  useEffect(() => {
+    if (finished || wait < 1 || wait > 2) return
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') getDocFromServer(doc(db, 'impostor/game')).catch(() => {})
+    }, 3000)
+    return () => clearInterval(t)
+  }, [finished, wait])
 
   return (
     <div className="flex-1 flex flex-col items-center p-4 gap-4 pb-8">
+      {showCall && <TurnCall number={number} onClose={() => setDismissed(key)} />}
+
       <div className="w-full flex items-center justify-between">
         <span className="chip">Giro {game.giro}</span>
         <span className="chip">{category}</span>
       </div>
 
       {mine && (
-        <div className="w-full rounded-3xl bg-gradient-to-br from-brand to-indigo p-5 text-center shadow-[0_20px_60px_-20px_rgba(47,147,240,.9)] anim-pop">
+        <div className="w-full rounded-3xl bg-gradient-to-br from-brand to-indigo p-5 text-center shadow-[0_20px_60px_-20px_rgba(47,147,240,.9)]">
           <Megaphone className="w-9 h-9 mx-auto anim-shake" />
           <div className="display text-white text-5xl mt-1">Tocca a te!</div>
           <p className="text-white/90 text-sm mt-1 font-medium">Vai davanti a tutti, <b>di’ la tua parola</b> e mostra questo numero.</p>
+        </div>
+      )}
+
+      {soon && (
+        <div className="w-full rounded-3xl bg-warn/15 border border-warn/50 p-4 text-center">
+          <div className="display text-warn text-4xl leading-none">Sei il prossimo!</div>
+          <p className="text-sm text-white/80 mt-1.5">Preparati: dopo il <b>Giocatore {current}</b> tocca a te.</p>
         </div>
       )}
 
@@ -187,12 +228,31 @@ export function TurnsView({ game, number, category }: { game: Game; number: numb
           ) : (
             <>
               <p className="text-sm text-muted">Ora parla il <b className="text-white">Giocatore {current}</b></p>
-              {wait > 0 && <p className="text-sm mt-1">Tocca a te tra <b className="text-ice">{wait}</b> {plural(wait, 'giocatore', 'giocatori')}</p>}
+              {wait > 1 && <p className="text-sm mt-1">Tocca a te tra <b className="text-ice">{wait}</b> {plural(wait, 'giocatore', 'giocatori')}</p>}
               <p className="text-xs text-muted mt-2">Di’ la tua parola solo quando vieni chiamato.</p>
             </>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/** Avviso a tutto schermo: tocca a te. Mostra anche il numero da far vedere agli altri. */
+function TurnCall({ number, onClose }: { number: number; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 anim-flash flex flex-col items-center justify-center text-center p-6 gap-5 text-white overflow-hidden"
+      style={{ backgroundImage: 'radial-gradient(80vmin 80vmin at 50% 38%, rgba(255,255,255,.22), transparent 70%)' }}>
+      <Megaphone className="w-20 h-20 anim-shake" />
+      <div>
+        <h1 className="display text-[4.4rem] leading-[.9] whitespace-nowrap">Tocca a te</h1>
+        <p className="text-lg font-semibold mt-3 text-white/90 max-w-xs">Vai davanti a tutti, di’ la tua parola e mostra questo numero</p>
+      </div>
+      <div className="rounded-[2rem] bg-white/95 text-brand-deep px-10 py-4 shadow-2xl">
+        <div className="eyebrow !text-brand-deep/70 text-sm">Giocatore</div>
+        <div className="display leading-[.85]" style={{ fontSize: 'min(42vw, 11rem)' }}>{number}</div>
+      </div>
+      <button className="btn bg-white !text-brand-deep text-base px-8 py-3.5 shadow-xl hover:!bg-white" onClick={onClose}><Check className="w-5 h-5" /> Ho capito</button>
     </div>
   )
 }

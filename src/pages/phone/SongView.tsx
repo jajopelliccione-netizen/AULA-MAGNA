@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Check, Clock, Lock, Mic, Music2, Plus, Search, X } from 'lucide-react'
-import { useQueue } from '../../lib/hooks'
+import { Check, Clock, Lock, Mic, Music2, Plus, Search, WifiOff, X } from 'lucide-react'
+import { useWakeLock } from '../../lib/wakelock'
+import { useOfflineBanner, useQueue } from '../../lib/hooks'
 import { bookSong, cancelBooking } from '../../lib/actions'
 import { searchSongs, youtubeConfigured, YtError, type YtResult } from '../../lib/youtube'
 import { isProfane } from '../../lib/profanity'
@@ -43,6 +44,9 @@ export default function SongView({ uid, nick, state, kind }: { uid: string; nick
   const mine = all.find((i) => i.uid === uid) ?? null
   const myIndex = mine && mine.status === 'approved' && mine.kind === kind ? queue.findIndex((i) => i.id === mine.id) : -1
   const np = state.nowPlaying && (state.nowPlaying.kind ?? 'karaoke') === kind ? state.nowPlaying : null
+  const offline = useOfflineBanner()
+  // con una richiesta in corso lo schermo resta acceso: un telefono in stand-by riceve in ritardo «Tocca a te»
+  useWakeLock(!!mine)
 
   // "TOCCA A TE": solo al karaoke, quando sono il prossimo (conto alla rovescia) o sto cantando
   const head = queue[0]
@@ -104,6 +108,12 @@ export default function SongView({ uid, nick, state, kind }: { uid: string; nick
   return (
     <div className="p-4 flex flex-col gap-5 pb-10">
       {showCall && <CallOverlay title={mine?.title ?? np?.title ?? ''} onClose={() => setDismissed(callKey)} />}
+
+      {offline && (
+        <div className="flex items-center gap-2 rounded-xl bg-warn/12 border border-warn/40 px-3 py-2 text-xs font-semibold text-warn">
+          <WifiOff className="w-4 h-4 shrink-0" /> Connessione instabile: gli aggiornamenti potrebbero arrivare in ritardo.
+        </div>
+      )}
 
       {!state.bookingsOpen && (
         <div className="flex items-center gap-2.5 rounded-2xl bg-bad/12 border border-bad/40 px-4 py-3 text-sm font-semibold text-[#ff9aab]">
@@ -251,7 +261,7 @@ export function CallOverlay({ title, onClose }: { title: string; onClose: () => 
         </div>
       </div>
       <div>
-        <h1 className="display text-[5.5rem] leading-[.9]">Tocca a te</h1>
+        <h1 className="display text-[4.4rem] leading-[.9] whitespace-nowrap">Tocca a te</h1>
         <p className="display text-3xl mt-3 text-white/90">Vai sul palco</p>
       </div>
       {title && <p className="max-w-xs text-sm font-semibold bg-black/25 rounded-full px-4 py-2 line-clamp-2">{title}</p>}

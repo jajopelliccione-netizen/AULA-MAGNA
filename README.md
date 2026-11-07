@@ -132,9 +132,15 @@ crea altri utenti in Firebase Authentication e aggiungi i loro UID sia in `fires
 Per sicurezza, in Firebase → Authentication → Impostazioni → **Azioni dell'utente** disattiva «Abilita creazione (registrazione)»:
 così nessuno può crearsi un account con email e password.
 
+## Avvisi puntuali sui telefoni
+
+- **Impostore**: chi deve parlare riceve «Tocca a te!» a schermo intero, con il suo numero grande da mostrare agli altri; chi parla dopo riceve «Sei il prossimo!». Vicino al proprio turno il telefono controlla il server ogni 3 secondi, così un ascolto rimasto indietro non fa perdere l'avviso.
+- Durante il gioco (e con una richiesta di canzone in corso) lo **schermo resta acceso**: un telefono in stand-by riceve gli aggiornamenti in ritardo.
+- Se la connessione è assente da più di 4 secondi compare «Connessione instabile».
+
 ## Audio su iPad / iPhone
 
-Safari su iPad e iPhone blocca l'avvio automatico dei video con l'audio. Per il proiettore è meglio un **computer con Chrome** (dopo il clic su «Clicca per avviare» tutto parte da solo). Se usi un iPad, l'app ci prova comunque: quando una canzone non parte da sola, la fa partire **senza audio** e mostra un grande pulsante **«Tocca per attivare l'audio»**; basta un tocco sullo schermo. Su iOS inoltre il volume non si regola dal sito (si usano i tasti dell'iPad o l'impianto audio).
+Safari su iPad e iPhone blocca l'avvio automatico dei video con l'audio. Per il proiettore è meglio un **computer con Chrome** (dopo il clic su «Clicca per avviare» tutto parte da solo). Ogni canzone **parte subito, in muto** (l'avvio muto è permesso da tutti i browser) e l'app prova a riattivare l'audio: sul computer succede da solo; su iPad compare un grande pulsante **«Tocca per attivare l'audio»** e basta un tocco (spesso solo per la prima canzone). Su iOS inoltre il volume non si regola dal sito (si usano i tasti dell'iPad o l'impianto audio).
 
 ## Come si usa la serata
 

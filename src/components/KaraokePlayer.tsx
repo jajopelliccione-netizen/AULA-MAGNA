@@ -27,8 +27,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const readyRef = useRef(false)
   const loadedRef = useRef<string | null>(null)
   const lastPub = useRef<{ queueId: string; base: number; paused: boolean } | null>(null)
-  // Safari/iPad blocca l'avvio automatico con audio: in quel caso il video parte muto e serve un tocco
-  const mutedFallback = useRef(false)
+  // Il video parte SEMPRE muto (l'avvio muto è permesso da tutti i browser), poi si prova a riattivare l'audio.
+  // Su Safari/iPad l'audio senza un tocco non è concesso: il video resta muto e compare «Tocca per attivare l'audio».
+  const keepMuted = useRef(false)
+  const attempting = useRef(false)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTap] = useState<'none' | 'unmute' | 'native'>('none')
 
@@ -50,7 +52,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     if (role === 'follower' && mutedRef.current) {
       p.mute?.()
     } else {
-      if (!mutedFallback.current) p.unMute?.()
+      if (!keepMuted.current) p.unMute?.()
       p.setVolume?.(s.volume)
     }
   }
@@ -75,16 +77,42 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     publishSync({ queueId: np.queueId, base, paused, pos }).catch(() => {})
   }
 
+  // prova a riattivare l'audio dopo che il video è partito
+  const tryUnmute = () => {
+    const p = playerRef.current
+    if (!p || attempting.current) return
+    attempting.current = true
+    setTimeout(() => {
+      if (!playerRef.current) return
+      p.unMute?.()
+      p.setVolume?.(stateRef.current.volume)
+      setTimeout(() => {
+        attempting.current = false
+        if (!playerRef.current) return
+        const st = p.getPlayerState?.()
+        if (p.isMuted?.() || (st !== 1 && st !== 3)) {
+          // audio non concesso: il video continua muto e si chiede un tocco
+          p.mute?.()
+          if (st !== 1 && st !== 3) p.playVideo?.()
+          setTap('unmute')
+        } else {
+          keepMuted.current = false
+          setTap('none')
+        }
+      }, 700)
+    }, 250)
+  }
+
+  // ultima rete di sicurezza: se dopo un paio di secondi il video non sta partendo nemmeno muto
   const fallbackMuted = () => {
     const p = playerRef.current
     if (!p || !readyRef.current) return
-    mutedFallback.current = true
+    keepMuted.current = true
     p.mute?.()
     p.playVideo?.()
     setTap('unmute')
   }
 
-  // se dopo qualche secondo il video non sta partendo, il browser ha bloccato l'avvio automatico
   const armBlockCheck = (queueId: string) => {
     clearTimeout(blockTimer.current)
     blockTimer.current = setTimeout(() => {
@@ -95,20 +123,20 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       const st = p.getPlayerState?.()
       if (st === 1 || st === 3) return // in riproduzione o in caricamento
       fallbackMuted()
-    }, 3500)
+    }, 2000)
   }
 
   const onTap = () => {
     const p = playerRef.current
     if (!p) return
-    mutedFallback.current = false
+    keepMuted.current = false
     p.unMute?.()
     p.setVolume?.(stateRef.current.volume)
     p.playVideo?.()
     setTimeout(() => {
       if (p.isMuted?.()) {
         // il browser non ha concesso l'audio: si rende toccabile il lettore di YouTube
-        mutedFallback.current = true
+        keepMuted.current = true
         setTap('native')
       } else {
         setTap('none')
@@ -128,17 +156,23 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         loadedRef.current = null
         lastPub.current = null
         clearTimeout(blockTimer.current)
-        mutedFallback.current = false
+        keepMuted.current = false
+        attempting.current = false
         setTap('none')
       }
       return
     }
     if (loadedRef.current !== np.queueId) {
       const start = role === 'follower' ? expectedPos() : null
+      // parte muto: l'avvio automatico muto funziona ovunque; l'audio si riattiva appena il video è in riproduzione
+      if (!(role === 'follower' && mutedRef.current)) {
+        keepMuted.current = true
+        p.mute?.()
+      }
+      attempting.current = false
       p.loadVideoById(start && start > 2 ? { videoId: np.videoId, startSeconds: start } : np.videoId)
       loadedRef.current = np.queueId
       lastPub.current = null
-      mutedFallback.current = false
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -169,6 +203,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
           onStateChange: (e: any) => {
             const np = stateRef.current.nowPlaying
             if (!np || np.queueId !== loadedRef.current) return
+            if (e.data === YT.PlayerState.PLAYING && keepMuted.current && !(role === 'follower' && mutedRef.current)) tryUnmute()
             if (e.data === YT.PlayerState.ENDED && role === 'master') cbRef.current.onEnded?.(np.queueId)
             else if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) publish(e.data === YT.PlayerState.PAUSED)
           },
