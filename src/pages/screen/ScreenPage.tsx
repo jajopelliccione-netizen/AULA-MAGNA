@@ -4,6 +4,7 @@ import { ScreenStart } from '../../components/ScreenStart'
 import { useAppState, useGame, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { ensureInitialDocs } from '../../lib/actions'
 import { useOutdated } from '../../lib/version'
+import { useAutoApprove } from '../../lib/autoApprove'
 import KaraokeStage from './KaraokeStage'
 import ImpostorScreen from './ImpostorScreen'
 import { LobbyScreen, PauseScreen } from './LobbyScreen'
@@ -20,12 +21,13 @@ function ScreenInner() {
   const [started, setStarted] = useState(false)
   const { data: state, ready } = useAppState()
   const kind = state.mode === 'music' ? 'music' : 'karaoke'
-  const { queue } = useQueue(kind)
+  const { queue, all: allRequests } = useQueue(kind)
   const { data: game } = useGame()
   const { players } = usePlayers(state.mode === 'impostor')
   const { count } = usePresence()
   const serverNow = useServerClock()
   const outdated = useOutdated()
+  useAutoApprove(state, allRequests, ready)
 
   // nuova versione del sito: ricarica da solo, ma solo quando non c'è un brano o una partita in corso
   const idle = !state.nowPlaying && state.playerStatus !== 'between' && (state.mode !== 'impostor' || game.status === 'lobby' || game.status === 'reveal')

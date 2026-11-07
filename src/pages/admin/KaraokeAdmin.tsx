@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, PlayCircle, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
 import type { AppState, BannedDoc, Kind, PresenceDoc, QueueItem } from '../../lib/types'
 import {
-  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setBookingsOpen, setGobboAudio, setPlayback, setPlayerStatus, startNextSong, setVolume, unban,
+  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setAutoApprove, setBookingsOpen, setGobboAudio, setPlayback, setPlayerStatus, startNextSong, setVolume, unban,
 } from '../../lib/actions'
 import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
 import { useAct } from './act'
@@ -117,6 +117,13 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
             hint={state.bookingsOpen ? 'I ragazzi possono proporre canzoni' : 'Richieste bloccate'}
           />
           <Switch
+            on={!!state.autoApprove?.[kind]}
+            onChange={(v) => act(v ? `ha attivato l’approvazione automatica (${L.mode})` : `ha spento l’approvazione automatica (${L.mode})`, () => setAutoApprove(kind, v))}
+            icon={<Check className="w-5 h-5" />}
+            title="Approvazione automatica"
+            hint={state.autoApprove?.[kind] ? 'Le richieste entrano subito in coda (puoi sempre toglierle)' : 'Ogni richiesta aspetta il tuo OK'}
+          />
+          <Switch
             on={state.playback === 'auto'}
             onChange={(v) => act(v ? 'ha attivato la riproduzione automatica' : 'ha attivato la riproduzione manuale', () => setPlayback(v ? 'auto' : 'manual'))}
             icon={<PlayCircle className="w-5 h-5" />}
@@ -137,7 +144,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
 
       {/* ---------- colonna destra: coda e ban ---------- */}
       <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-3">
-        <Requests pending={pending} serverNow={serverNow} className="order-1 lg:order-none" />
+        <Requests pending={pending} serverNow={serverNow} auto={!!state.autoApprove?.[kind]} className="order-1 lg:order-none" />
 
         <section className="order-3 lg:order-none card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
@@ -275,7 +282,7 @@ async function unbanAll(b: BannedDoc, all: BannedDoc[]) {
 }
 
 /** Richieste in attesa: nessuna canzone entra in coda senza l'approvazione di un admin. */
-function Requests({ pending, serverNow, className = '' }: { pending: QueueItem[]; serverNow: () => number; className?: string }) {
+function Requests({ pending, serverNow, auto, className = '' }: { pending: QueueItem[]; serverNow: () => number; auto: boolean; className?: string }) {
   const act = useAct()
   return (
     <section className={`card p-4 sm:p-5 ${pending.length ? 'ring-1 ring-warn/60 shadow-[0_12px_50px_-24px_rgba(255,200,87,.9)]' : ''} ${className}`}>
@@ -290,7 +297,8 @@ function Requests({ pending, serverNow, className = '' }: { pending: QueueItem[]
           </button>
         )}
       </div>
-      {pending.length === 0 && <p className="text-muted text-sm rounded-xl bg-white/[.04] border border-line px-4 py-5 text-center">Nessuna richiesta in attesa. Quando qualcuno propone una canzone compare qui.</p>}
+      {auto && <p className="text-sm rounded-xl bg-good/10 border border-good/35 text-good px-4 py-2.5 mb-3 flex items-center gap-2"><Check className="w-4 h-4 shrink-0" /> Approvazione automatica attiva: le nuove richieste entrano da sole in coda.</p>}
+      {pending.length === 0 && <p className="text-muted text-sm rounded-xl bg-white/[.04] border border-line px-4 py-5 text-center">{auto ? 'Nessuna richiesta in sospeso.' : 'Nessuna richiesta in attesa. Quando qualcuno propone una canzone compare qui.'}</p>}
       <ul className="flex flex-col gap-2">
         {pending.map((r) => (
           <li key={r.id} className="rounded-2xl bg-warn/[.07] border border-warn/30 p-2.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">

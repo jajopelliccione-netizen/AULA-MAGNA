@@ -57,6 +57,8 @@ export interface AppState {
   /** incrementato dall'admin per far ricominciare da capo la canzone in corso */
   restartNonce: number
   gobboAudio: boolean
+  /** approvazione automatica delle richieste, separata per karaoke e musica */
+  autoApprove?: Partial<Record<Kind, boolean>>
   playback: Playback
   /** true = appena entrati in karaoke/musica: niente parte finché l'admin non avvia */
   hold: boolean
@@ -76,6 +78,7 @@ export const DEFAULT_STATE: AppState = {
   skipNonce: 0,
   restartNonce: 0,
   gobboAudio: false,
+  autoApprove: { karaoke: false, music: false },
   playback: 'auto',
   hold: false,
   sync: null,

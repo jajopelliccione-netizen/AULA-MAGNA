@@ -7,6 +7,7 @@ import { UpdateBanner } from '../../components/UpdateBanner'
 import { BrandTitle } from '../../components/Logo'
 import { useAppState, useBanned, useGame, useLive, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { useOutdated } from '../../lib/version'
+import { useAutoApprove } from '../../lib/autoApprove'
 import { ensureInitialDocs, logAction, setImpostorConfig, setPauseMessage, switchMode } from '../../lib/actions'
 import type { ImpostorConfig, LastAction, Mode } from '../../lib/types'
 import KaraokeAdmin from './KaraokeAdmin'
@@ -39,7 +40,7 @@ function AdminInner() {
   const { data: state, ready } = useAppState()
   const { queue: karaokeQueue, pending: karaokePending, all } = useQueue('karaoke')
   const { queue: musicQueue, pending: musicPending } = useQueue('music')
-  void all
+  useAutoApprove(state, all, ready)
   const { data: game } = useGame()
   const { players } = usePlayers()
   const { online, count } = usePresence()

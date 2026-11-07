@@ -131,6 +131,17 @@ export async function addManualSong(videoId: string, title: string, nickname: st
 
 /** L'admin approva una richiesta: entra in coda in fondo (ordine = istante di approvazione). */
 export const approveRequest = (id: string, nowMs: number) => updateDoc(doc(db, 'queue', id), { status: 'approved', order: nowMs })
+/** Accende/spegne l'approvazione automatica per karaoke o musica. */
+export const setAutoApprove = (kind: Kind, on: boolean) => patchState({ autoApprove: { [kind]: on } })
+/**
+ * Approvazione automatica: l'ordine in coda è l'istante della richiesta, quindi se due schermi
+ * (admin e proiettore) approvano insieme scrivono gli stessi valori e il risultato è identico.
+ */
+export async function approveByRequestTime(items: QueueItem[]) {
+  const batch = writeBatch(db)
+  items.forEach((i) => batch.update(doc(db, 'queue', i.id), { status: 'approved', order: i.createdAt }))
+  await batch.commit()
+}
 export const rejectRequest = (id: string) => updateDoc(doc(db, 'queue', id), { status: 'rejected' })
 export async function approveAll(ids: string[], nowMs: number) {
   const batch = writeBatch(db)
@@ -358,7 +369,7 @@ export async function ensureInitialDocs() {
   if (!s.exists()) {
     await setDoc(stateRef(), {
       mode: 'lobby', message: 'Torniamo subito!', nowPlaying: null, playerStatus: 'idle',
-      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, restartNonce: 0, gobboAudio: false, playback: 'auto', hold: false, sync: null,
+      bookingsOpen: true, volume: 80, betweenEndsAt: null, skipNonce: 0, restartNonce: 0, gobboAudio: false, autoApprove: { karaoke: false, music: false }, playback: 'auto', hold: false, sync: null,
       impostorConfig: { categoryId: 'random', impostors: 1, readingSec: 8 }, lastAction: null,
     })
   }
