@@ -372,7 +372,7 @@ export function VotingView({ uid, me, players, myNumber }: { uid: string; me: st
   )
 }
 
-function RevealView({ game, players, uid, voted }: { game: Game; players: PlayerDoc[]; uid: string; voted: string | null }) {
+export function RevealView({ game, players, uid, voted }: { game: Game; players: PlayerDoc[]; uid: string; voted: string | null }) {
   const iWasImpostor = game.impostorUids.includes(uid)
   const guessed = voted ? game.impostorUids.includes(voted) : false
   const many = game.impostorUids.length > 1

@@ -8,7 +8,7 @@ import ImpostorScreen, { BarText } from './screen/ImpostorScreen'
 import KaraokeAdmin from './admin/KaraokeAdmin'
 import ImpostorAdmin from './admin/ImpostorAdmin'
 import { CallOverlay } from './phone/SongView'
-import { ReadingView, TurnsView, VotingView } from './phone/ImpostorView'
+import { ReadingView, RevealView, TurnsView, VotingView } from './phone/ImpostorView'
 import { ScreenStart } from '../components/ScreenStart'
 import { BrandTitle } from '../components/Logo'
 
@@ -46,10 +46,13 @@ export default function Preview() {
     case 'i-voting': return <div className="h-screen"><ImpostorScreen serverNow={clock} game={{ ...baseGame, status: 'voting' }} players={players} /></div>
     case 'i-reveal': return <div className="h-screen"><ImpostorScreen serverNow={clock} game={{ ...baseGame, status: 'reveal', word: 'Carbonara', impostorUids: ['p1'], impostorNames: ['Marco_99'], impostorNumbers: [2] }} players={players} /></div>
     case 'gobbo-between': return <div className="h-screen bg-stage flex flex-col items-center justify-center gap-[3vh] text-center"><div className="eyebrow text-[2vw]">Tocca a</div><div className="display grad-text text-[11vw]">Giulia</div><CountdownRing left={6500} size={300} /></div>
-    case 'p-reading': return <div className="min-h-screen bg-stage flex flex-col"><ReadingView role={{ role: 'crew', word: 'Carbonara', category: 'Cibo', round: 1 }} sec={600} number={7} /></div>
-    case 'p-reading-imp': return <div className="min-h-screen bg-stage flex flex-col"><ReadingView role={{ role: 'impostor', word: null, category: 'Cibo', round: 1 }} sec={600} number={7} /></div>
+    case 'p-reading': return <div className="min-h-screen bg-stage flex flex-col"><ReadingView role={{ role: 'crew', word: 'Carbonara', category: 'Cibo', round: 1 }} sec={10} number={7} /></div>
+    case 'p-reading-imp': return <div className="min-h-screen bg-stage flex flex-col"><ReadingView role={{ role: 'impostor', word: null, category: 'Cibo', round: 1 }} sec={10} number={7} /></div>
     case 'p-turns-wait': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={7} game={baseGame} uid="p6" words={{}} /></div>
     case 'p-turns-mine': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={1} game={baseGame} uid="p0" words={{ 2: 'basilico' }} /></div>
+    case 'p-turns-word': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={7} game={{ ...baseGame, turnIndex: 5 }} uid="p6" words={{ 2: 'basilico' }} /></div>
+    case 'p-turns-input': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={4} game={{ ...baseGame, turnIndex: 0 }} uid="p3" words={{}} /></div>
+    case 'p-reveal': return <div className="min-h-screen bg-stage flex flex-col"><RevealView game={{ ...baseGame, status: 'reveal', word: 'Carbonara', impostorUids: ['p1'], impostorNames: ['Marco_99'], impostorNumbers: [2] }} players={players} uid="p0" voted="p1" /></div>
     case 'p-voting': return <div className="min-h-screen bg-stage flex flex-col"><VotingView uid="p0" me="p2" myNumber={1} players={players} /></div>
     case 'bar-test': return <div className="h-screen bg-stage flex flex-col justify-center gap-6 px-20">{[0, 12, 22, 35, 60, 100].map((f) => <div key={f} className="relative h-[7vh] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.07)' }}><div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand/85 to-brand" style={{ width: `${f}%` }} /><BarText text="parola molto lunga · attraversa · la barra" fill={f} /></div>)}</div>
     case 'call': return <CallOverlay title="Vasco Rossi - Albachiara (Karaoke Version)" onClose={() => {}} />
