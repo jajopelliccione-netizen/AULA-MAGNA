@@ -147,7 +147,15 @@ export interface PlayerDoc {
   vote: string | null
   /** numero assegnato a inizio partita ("Giocatore N") */
   number: number | null
+  /** parole dette a voce, scritte dal giocatore: una per giro, chiave = numero del giro */
+  words: Record<string, string>
 }
+
+/** Le parole di un giocatore in ordine di giro. */
+export const wordsOf = (p: { words: Record<string, string> }): string[] =>
+  Object.entries(p.words)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([, w]) => w)
 
 export interface RoleDoc {
   role: 'crew' | 'impostor'

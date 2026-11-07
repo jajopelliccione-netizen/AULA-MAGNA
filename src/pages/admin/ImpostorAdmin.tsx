@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, Play, RotateCcw, RotateCw, UserX, Vote } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Eye, Play, RotateCcw, RotateCw, UserX, Vote, X } from 'lucide-react'
 import type { Game, ImpostorConfig, PlayerDoc } from '../../lib/types'
 import { useAct } from './act'
-import { expelPlayer, moveTurn, nextGiro, resetLobby, resetWordHistory, revealRound, startRound, startTurns, startVoting } from '../../lib/actions'
+import { expelPlayer, moveTurn, nextGiro, removeWord, resetLobby, resetWordHistory, revealRound, startRound, startTurns, startVoting } from '../../lib/actions'
 import { CATEGORIES, RANDOM_CATEGORY_ID, availability, type WordHistory } from '../../lib/words'
 import { useDoc } from '../../lib/hooks'
 
@@ -203,17 +203,37 @@ export default function ImpostorAdmin({ game, players, serverNow, config, onConf
         <ul className="grid sm:grid-cols-2 gap-2">
           {players.map((p) => {
             const speaking = game.status === 'turns' && !!p.number && p.number === current
+            const entries = Object.entries(p.words).sort((a, b) => Number(a[0]) - Number(b[0]))
+            const hasCurrent = game.status === 'turns' && !!p.words[String(game.giro)]
             return (
-              <li key={p.id} className={`flex items-center gap-2.5 rounded-2xl border pl-2 pr-2 py-2 ${speaking ? 'bg-brand/20 border-brand ring-1 ring-brand' : 'bg-white/[.045] border-line'}`}>
-                <span className="display grid place-items-center w-10 h-10 rounded-xl bg-white/[.07] text-ice text-2xl shrink-0">{p.number ?? '–'}</span>
-                <span className="font-bold truncate flex-1">{p.nickname}</span>
-                {game.status === 'voting' && (
-                  <>
-                    <span className="chip border-warn/40 bg-warn/10 text-warn">{votesFor(p.id)} voti</span>
-                    <span className={`text-xs ${p.vote ? 'text-good' : 'text-muted'}`}>{p.vote ? 'ha votato' : '…'}</span>
-                  </>
+              <li key={p.id} className={`flex flex-col gap-1.5 rounded-2xl border pl-2 pr-2 py-2 ${speaking ? 'bg-brand/20 border-brand ring-1 ring-brand' : 'bg-white/[.045] border-line'}`}>
+                <div className="flex items-center gap-2.5">
+                  <span className="display grid place-items-center w-10 h-10 rounded-xl bg-white/[.07] text-ice text-2xl shrink-0">{p.number ?? '–'}</span>
+                  <span className="font-bold truncate flex-1">{p.nickname}</span>
+                  {hasCurrent && <span className="chip border-good/40 bg-good/10 text-good !py-0.5" title="Ha scritto la parola di questo giro"><Check className="w-3 h-3" /> parola</span>}
+                  {game.status === 'voting' && (
+                    <>
+                      <span className="chip border-warn/40 bg-warn/10 text-warn">{votesFor(p.id)} voti</span>
+                      <span className={`text-xs ${p.vote ? 'text-good' : 'text-muted'}`}>{p.vote ? 'ha votato' : '…'}</span>
+                    </>
+                  )}
+                  <button className="btn btn-icon btn-danger" title="Espelli" onClick={() => confirm(`Espellere ${p.nickname}?`) && run(() => act(`ha espulso ${p.nickname}`, () => expelPlayer(p.id)))}><UserX className="w-4 h-4" /></button>
+                </div>
+                {entries.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pl-[3.1rem]">
+                    {entries.map(([giro, w]) => (
+                      <span key={giro} className="chip !pr-1 !gap-1.5 bg-white/[.07]">
+                        <span className="text-muted">{giro}°</span> <b className="text-white">{w}</b>
+                        <button
+                          className="grid place-items-center w-5 h-5 rounded-full hover:bg-bad/30 text-muted hover:text-white"
+                          title="Togli questa parola dallo schermo"
+                          aria-label={`Togli la parola ${w}`}
+                          onClick={() => run(() => act(`ha tolto la parola «${w}» del Giocatore ${p.number}`, () => removeWord(p.id, giro)))}
+                        ><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
                 )}
-                <button className="btn btn-icon btn-danger" title="Espelli" onClick={() => confirm(`Espellere ${p.nickname}?`) && run(() => act(`ha espulso ${p.nickname}`, () => expelPlayer(p.id)))}><UserX className="w-4 h-4" /></button>
               </li>
             )
           })}

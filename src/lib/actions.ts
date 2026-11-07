@@ -1,5 +1,5 @@
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, increment, serverTimestamp, setDoc, updateDoc, writeBatch,
+  collection, deleteDoc, deleteField, doc, getDoc, getDocs, increment, serverTimestamp, setDoc, updateDoc, writeBatch,
   type WriteBatch,
 } from 'firebase/firestore'
 import { db } from './firebase'
@@ -32,6 +32,14 @@ export const heartbeat = (uid: string, nickname: string) =>
 
 export const joinGame = (uid: string, nickname: string) => setDoc(doc(db, 'impostor/game/players', uid), { nickname, vote: null })
 export const leaveGame = (uid: string) => deleteDoc(doc(db, 'impostor/game/players', uid))
+/** Il giocatore scrive la parola che ha detto nel giro corrente (una per giro, modificabile finché il giro è aperto). */
+export const submitWord = (uid: string, giro: number, word: string) =>
+  updateDoc(doc(db, 'impostor/game/players', uid), { [`words.${giro}`]: word })
+
+/** Solo admin: toglie una parola dallo schermo (es. inappropriata). */
+export const removeWord = (uid: string, giro: string) =>
+  updateDoc(doc(db, 'impostor/game/players', uid), { [`words.${giro}`]: deleteField() })
+
 export const castVote = (uid: string, target: string | null) => updateDoc(doc(db, 'impostor/game/players', uid), { vote: target })
 
 /* ------------------------------- staff: stato ------------------------------- */
@@ -260,7 +268,7 @@ export async function startRound(opts: RoundOptions, nowMs: number) {
         round,
       }),
     )
-    ops.push((b) => b.update(doc(db, 'impostor/game/players', p.uid), { vote: null, number: p.number }))
+    ops.push((b) => b.update(doc(db, 'impostor/game/players', p.uid), { vote: null, number: p.number, words: {} }))
   })
   ops.push((b) =>
     b.set(doc(db, 'impostor/private'), {

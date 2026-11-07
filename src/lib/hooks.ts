@@ -105,6 +105,7 @@ export function usePlayers(enabled = true) {
     nickname: String(d.nickname ?? '???'),
     vote: (d.vote as string | null | undefined) ?? null,
     number: (d.number as number | undefined) ?? null,
+    words: (d.words as Record<string, string> | undefined) ?? {},
   }))
   const players = [...items].sort((a, b) => (a.number ?? 1e9) - (b.number ?? 1e9) || a.nickname.localeCompare(b.nickname))
   return { players, ready }

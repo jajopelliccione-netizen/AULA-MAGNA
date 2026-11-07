@@ -4,7 +4,7 @@ import type { AppState, Game, PlayerDoc, QueueItem } from '../lib/types'
 import { DEFAULT_STATE } from '../lib/types'
 import KaraokeStage, { CountdownRing } from './screen/KaraokeStage'
 import { LobbyScreen, PauseScreen } from './screen/LobbyScreen'
-import ImpostorScreen from './screen/ImpostorScreen'
+import ImpostorScreen, { BarText } from './screen/ImpostorScreen'
 import KaraokeAdmin from './admin/KaraokeAdmin'
 import ImpostorAdmin from './admin/ImpostorAdmin'
 import { CallOverlay } from './phone/SongView'
@@ -23,7 +23,7 @@ const queue = [
   mk(5, 'Chiara', 'Annalisa - Sinceramente (Karaoke Instrumental)'),
   mk(6, 'Davide', 'Blanco - Notti in bianco (Karaoke)'),
 ]
-const players: PlayerDoc[] = ['Giulia', 'Marco_99', 'Sofia', 'Lorenzo', 'Chiara', 'Davide', 'Elena', 'Matteo'].map((n, i) => ({ id: 'p' + i, nickname: n, number: i + 1, vote: i % 3 === 0 ? 'p1' : i % 3 === 1 ? 'p2' : i === 5 ? 'p1' : null }))
+const players: PlayerDoc[] = ['Giulia', 'Marco_99', 'Sofia', 'Lorenzo', 'Chiara', 'Davide', 'Elena', 'Matteo'].map((n, i) => ({ id: 'p' + i, nickname: n, number: i + 1, words: [{ 1: 'forno', 2: 'basilico' }, { 1: 'mozzarella' }, { 1: 'Napoli', 2: 'cena' }, { 1: 'rosso' }, {}, { 1: 'tondo', 2: 'caldo' }, { 1: 'domenica' }, { 1: 'famiglia', 2: 'estate' }][i] as Record<string, string>, vote: i % 3 === 0 ? 'p1' : i % 3 === 1 ? 'p2' : i === 5 ? 'p1' : null }))
 const baseGame: Game = { status: 'turns', category: 'Cibo', categoryId: 'cibo', word: null, impostorUids: [], impostorNames: [], impostorNumbers: [], endsAt: Date.now() + 7_000, round: 1, readingSec: 8, giro: 2, order: [5, 2, 8, 1, 7, 3, 6, 4], turnIndex: 3 }
 const st = (p: Partial<AppState>): AppState => ({ ...DEFAULT_STATE, mode: 'karaoke', ...p })
 const clock = () => Date.now()
@@ -48,9 +48,10 @@ export default function Preview() {
     case 'gobbo-between': return <div className="h-screen bg-stage flex flex-col items-center justify-center gap-[3vh] text-center"><div className="eyebrow text-[2vw]">Tocca a</div><div className="display grad-text text-[11vw]">Giulia</div><CountdownRing left={6500} size={300} /></div>
     case 'p-reading': return <div className="min-h-screen bg-stage flex flex-col"><ReadingView role={{ role: 'crew', word: 'Carbonara', category: 'Cibo', round: 1 }} sec={600} number={7} /></div>
     case 'p-reading-imp': return <div className="min-h-screen bg-stage flex flex-col"><ReadingView role={{ role: 'impostor', word: null, category: 'Cibo', round: 1 }} sec={600} number={7} /></div>
-    case 'p-turns-wait': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={7} game={baseGame} /></div>
-    case 'p-turns-mine': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={1} game={baseGame} /></div>
+    case 'p-turns-wait': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={7} game={baseGame} uid="p6" words={{}} /></div>
+    case 'p-turns-mine': return <div className="min-h-screen bg-stage flex flex-col"><TurnsView category="Cibo" number={1} game={baseGame} uid="p0" words={{ 2: 'basilico' }} /></div>
     case 'p-voting': return <div className="min-h-screen bg-stage flex flex-col"><VotingView uid="p0" me="p2" myNumber={1} players={players} /></div>
+    case 'bar-test': return <div className="h-screen bg-stage flex flex-col justify-center gap-6 px-20">{[0, 12, 22, 35, 60, 100].map((f) => <div key={f} className="relative h-[7vh] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.07)' }}><div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand/85 to-brand" style={{ width: `${f}%` }} /><BarText text="parola molto lunga · attraversa · la barra" fill={f} /></div>)}</div>
     case 'call': return <CallOverlay title="Vasco Rossi - Albachiara (Karaoke Version)" onClose={() => {}} />
     case 'a-karaoke': return <div className="min-h-screen bg-stage p-6"><div className="max-w-6xl mx-auto"><div className="mb-5"><BrandTitle /></div><KaraokeAdmin kind="karaoke" serverNow={clock} pending={pend} presence={[]} banned={[{ id: 'x', nickname: 'Troll', createdAt: 1 }]} queue={queue} state={st({ playerStatus: 'playing', nowPlaying: { queueId: 'x', videoId: 'dQw4w9WgXcQ', title: 'Vasco Rossi - Albachiara (Karaoke Version)', nickname: 'Giulia', uid: 'u1', bookedAt: 1, startedAt: 1 } })} /></div></div>
     case 'a-impostor': return <div className="min-h-screen bg-stage p-6"><div className="max-w-6xl mx-auto"><ImpostorAdmin serverNow={clock} game={baseGame} players={players} config={{ categoryId: 'random', impostors: 1, readingSec: 8 }} onConfig={() => {}} /></div></div>

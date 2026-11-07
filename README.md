@@ -132,6 +132,14 @@ crea altri utenti in Firebase Authentication e aggiungi i loro UID sia in `fires
 Per sicurezza, in Firebase → Authentication → Impostazioni → **Azioni dell'utente** disattiva «Abilita creazione (registrazione)»:
 così nessuno può crearsi un account con email e password.
 
+## Le parole dette (impostore)
+
+Dopo aver detto la parola a voce, il giocatore la **scrive sul telefono e conferma** (una parola per giro, modificabile finché il giro è aperto, massimo 24 caratteri, filtro parolacce). Le parole compaiono:
+- sul **proiettore** durante il voto, scritte **sopra la barra** di ogni giocatore: il testo è chiaro sulla parte vuota e **cambia colore dove passa la barra** (anche a metà lettera mentre si anima);
+- sul **telefono** di chi vota, sotto il numero di ogni giocatore;
+- nel **pannello admin**, accanto a ogni giocatore, con una ✕ per togliere dallo schermo una parola inappropriata.
+Si azzerano a ogni «Nuova partita». Le regole Firestore permettono di scrivere **solo la propria parola del giro corrente** (nessun altro campo, nessun altro giocatore) e sono verificate da 81 controlli automatici.
+
 ## Avvisi puntuali sui telefoni
 
 - **Impostore**: chi deve parlare riceve «Tocca a te!» a schermo intero, con il suo numero grande da mostrare agli altri; chi parla dopo riceve «Sei il prossimo!». Vicino al proprio turno il telefono controlla il server ogni 3 secondi, così un ascolto rimasto indietro non fa perdere l'avviso.

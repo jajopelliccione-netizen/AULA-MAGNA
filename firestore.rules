@@ -109,7 +109,21 @@ service cloud.firestore {
               || get(/databases/$(database)/documents/impostor/game).data.status in ['lobby', 'reveal'])
           || isStaff();
 
+        // Il giocatore scrive la parola che ha detto: solo il campo "words", solo la chiave del giro corrente
+        // (una parola per giro, modificabile), da 1 a 24 caratteri, solo durante i giri o il voto.
         allow update: if isStaff() || (
+          signedIn()
+          && request.auth.uid == uid
+          && get(/databases/$(database)/documents/impostor/game).data.status in ['turns', 'voting']
+          && exists(/databases/$(database)/documents/impostor/game/roles/$(uid))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['words'])
+          && request.resource.data.words is map
+          && request.resource.data.words.diff(resource.data.get('words', {})).affectedKeys()
+               .hasOnly([string(get(/databases/$(database)/documents/impostor/game).data.giro)])
+          && request.resource.data.words[string(get(/databases/$(database)/documents/impostor/game).data.giro)] is string
+          && request.resource.data.words[string(get(/databases/$(database)/documents/impostor/game).data.giro)].size() >= 1
+          && request.resource.data.words[string(get(/databases/$(database)/documents/impostor/game).data.giro)].size() <= 24
+        ) || (
           signedIn()
           && request.auth.uid == uid
           && get(/databases/$(database)/documents/impostor/game).data.status == 'voting'

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, Clock, Hourglass, LogOut, Megaphone, Trophy, UserCheck, VenetianMask, Vote, WifiOff } from 'lucide-react'
+import { Check, Clock, Hourglass, LogOut, Megaphone, Pencil, Trophy, UserCheck, VenetianMask, Vote, WifiOff } from 'lucide-react'
 import { doc, getDocFromServer } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useWakeLock } from '../../lib/wakelock'
 import { useDoc, useGame, useOfflineBanner, usePlayers, useNow } from '../../lib/hooks'
-import { castVote, joinGame, leaveGame } from '../../lib/actions'
+import { castVote, joinGame, leaveGame, submitWord } from '../../lib/actions'
+import { isProfane } from '../../lib/profanity'
 import { plural } from '../../lib/util'
-import type { Game, PlayerDoc, RoleDoc } from '../../lib/types'
+import { wordsOf, type Game, type PlayerDoc, type RoleDoc } from '../../lib/types'
 
 const NO_ROLE: RoleDoc = { role: 'crew', word: null, category: '', round: -1 }
 
@@ -71,7 +72,7 @@ function ImpostorInner({ uid, nick }: { uid: string; nick: string }) {
   if (!role || !me?.number) return <LoadingRole />
 
   if (game.status === 'reading') return <ReadingView key={game.round} role={role} sec={game.readingSec} number={me.number} />
-  if (game.status === 'turns') return <TurnsView game={game} number={me.number} category={role.category} />
+  if (game.status === 'turns') return <TurnsView game={game} number={me.number} category={role.category} uid={uid} words={me.words} />
   return <VotingView uid={uid} me={me.vote} players={players} myNumber={me.number} />
 }
 
@@ -162,7 +163,7 @@ export function ReadingView({ role, sec, number }: { role: RoleDoc; sec: number;
 }
 
 /** Fase 2: i giri. Quando tocca a te vai davanti, dì la parola e mostra il numero. */
-export function TurnsView({ game, number, category }: { game: Game; number: number; category: string }) {
+export function TurnsView({ game, number, category, uid, words }: { game: Game; number: number; category: string; uid: string; words: Record<string, string> }) {
   const myPos = game.order.indexOf(number)
   const finished = game.turnIndex >= game.order.length
   const mine = !finished && myPos === game.turnIndex
@@ -219,6 +220,8 @@ export function TurnsView({ game, number, category }: { game: Game; number: numb
 
       <NumberCard number={number} highlight={mine} />
 
+      <WordBox key={game.giro} uid={uid} giro={game.giro} saved={words[String(game.giro)]} />
+
       {!mine && (
         <div className="card p-4 w-full text-center">
           {finished ? (
@@ -233,6 +236,77 @@ export function TurnsView({ game, number, category }: { game: Game; number: numb
             </>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Dopo aver detto la parola a voce, il giocatore la scrive qui e conferma:
+ * comparirà sul maxischermo durante il voto (una parola per giro, modificabile finché il giro è aperto).
+ */
+function WordBox({ uid, giro, saved }: { uid: string; giro: number; saved: string | undefined }) {
+  const [val, setVal] = useState(saved ?? '')
+  const [editing, setEditing] = useState(!saved)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (saved) {
+      setVal(saved)
+      setEditing(false)
+    }
+  }, [saved])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const w = val.trim().replace(/\s+/g, ' ')
+    if (!w) return setErr('Scrivi la parola che hai detto')
+    if (w.length > 24) return setErr('Massimo 24 caratteri')
+    if (isProfane(w)) return setErr('Questa parola non è consentita')
+    setBusy(true)
+    setErr('')
+    try {
+      await submitWord(uid, giro, w)
+      setEditing(false)
+    } catch (ex) {
+      const code = (ex as { code?: string }).code
+      setErr(code === 'permission-denied' ? 'Non posso salvarla adesso: il giro potrebbe essere chiuso.' : 'Non sono riuscito a salvarla, riprova.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card p-4 w-full flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold flex items-center gap-2"><Pencil className="w-4 h-4 text-ice" /> La parola che hai detto</div>
+        <span className="chip">Giro {giro}</span>
+      </div>
+      {!editing && saved ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-good/10 border border-good/40 px-4 py-3">
+          <div className="min-w-0 flex items-center gap-2">
+            <Check className="w-5 h-5 text-good shrink-0" />
+            <span className="display text-white text-2xl truncate">{saved}</span>
+          </div>
+          <button className="btn !py-2 text-sm shrink-0" onClick={() => setEditing(true)}>Modifica</button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="flex flex-col gap-2.5">
+          <input
+            className="input"
+            placeholder="Scrivi la parola e conferma"
+            maxLength={24}
+            autoComplete="off"
+            autoCorrect="off"
+            enterKeyHint="send"
+            value={val}
+            onChange={(e) => { setVal(e.target.value); setErr('') }}
+          />
+          {err && <p className="text-bad text-sm">{err}</p>}
+          <button className="btn btn-primary py-3" disabled={busy || !val.trim()}>{busy ? 'Salvo…' : 'Conferma'}</button>
+          <p className="text-xs text-muted">Comparirà sul maxischermo durante il voto.</p>
+        </form>
       )}
     </div>
   )
@@ -282,10 +356,11 @@ export function VotingView({ uid, me, players, myNumber }: { uid: string; me: st
               <button
                 onClick={() => vote(p.id)}
                 disabled={busy !== null}
-                className={`w-full aspect-[5/4] rounded-3xl border-2 flex flex-col items-center justify-center transition ${on ? 'bg-brand/25 border-ice ring-2 ring-brand' : 'bg-white/[.05] border-line'}`}
+                className={`w-full min-h-[8.5rem] py-3 rounded-3xl border-2 flex flex-col items-center justify-center transition ${on ? 'bg-brand/25 border-ice ring-2 ring-brand' : 'bg-white/[.05] border-line'}`}
               >
                 <span className="eyebrow text-xs">Giocatore</span>
                 <span className="display text-white text-6xl leading-none mt-1">{p.number}</span>
+                {wordsOf(p).length > 0 && <span className="text-xs text-muted mt-1.5 px-2 line-clamp-2 leading-snug">{wordsOf(p).join(' · ')}</span>}
                 {on && <Check className="w-5 h-5 text-ice mt-1" />}
               </button>
             </li>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Check, Hourglass, Megaphone, RotateCw, Users, Vote, VenetianMask } from 'lucide-react'
-import type { Game, PlayerDoc } from '../../lib/types'
+import { wordsOf, type Game, type PlayerDoc } from '../../lib/types'
 import { useNow } from '../../lib/hooks'
 import { QR, shortUrl } from './QR'
 import { Logo } from '../../components/Logo'
@@ -128,6 +128,22 @@ function Turns({ game }: { game: Game }) {
   )
 }
 
+/**
+ * Testo scritto sulla barra: in chiaro sulla parte vuota, in scuro sulla parte colorata.
+ * Le due copie sono ritagliate (clip-path) alla stessa percentuale della barra, così il colore
+ * del testo cambia esattamente dove passa la barra, anche durante l'animazione.
+ */
+export function BarText({ text, fill }: { text: string; fill: number }) {
+  const cls = 'absolute inset-0 flex items-center px-[1.8vw] whitespace-nowrap overflow-hidden text-ellipsis text-[2vw] font-extrabold tracking-tight'
+  const tr = 'clip-path 700ms cubic-bezier(.22,1,.36,1)'
+  return (
+    <>
+      <div className={`${cls} text-white/90`} style={{ clipPath: `inset(0 0 0 ${fill}%)`, transition: tr }}>{text}</div>
+      <div className={`${cls} text-ink`} style={{ clipPath: `inset(0 ${100 - fill}% 0 0)`, transition: tr }}>{text}</div>
+    </>
+  )
+}
+
 function Voting({ players }: { players: PlayerDoc[] }) {
   const ids = new Set(players.map((p) => p.id))
   const counts = new Map<string, number>()
@@ -143,17 +159,20 @@ function Voting({ players }: { players: PlayerDoc[] }) {
   const shown = rows.slice(0, 9)
   return (
     <Frame phase="Votazione" icon={<Vote />} right={<div className="display text-white text-[2.4vw] tabular">{voters}<span className="text-muted">/{players.length}</span> <span className="eyebrow text-[1.1vw] ml-[.4vw]">voti</span></div>}>
-      <div className="card h-full flex flex-col justify-center gap-[1.5vh] px-[2.4vw]">
+      <div className="card h-full flex flex-col justify-center gap-[1.4vh] px-[2.4vw]">
         {shown.map(({ p, n }, i) => {
           const lead = i === 0 && n > 0
+          const fill = n > 0 ? Math.max(4, Math.round((n / max) * 100)) : 0
+          const text = wordsOf(p).join(' · ') || '—'
           return (
             <div key={p.id} className="flex items-center gap-[1.4vw]">
-              <div className={`w-[19vw] text-right truncate display text-[2.8vw] ${lead ? 'text-white' : 'text-white/75'}`}>Giocatore {p.number ?? '?'}</div>
-              <div className="flex-1 h-[5.2vh] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.07)' }}>
+              <div className={`w-[17vw] text-right truncate display text-[2.6vw] ${lead ? 'text-white' : 'text-white/75'}`}>Giocatore {p.number ?? '?'}</div>
+              <div className="relative flex-1 h-[6vh] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.07)' }}>
                 <div
-                  className={`h-full rounded-full transition-all duration-700 ease-out ${lead ? 'bg-gradient-to-r from-brand to-ice' : 'bg-gradient-to-r from-navy to-brand/70'}`}
-                  style={{ width: `${(n / max) * 100}%`, minWidth: n > 0 ? '3%' : 0 }}
+                  className={`absolute inset-y-0 left-0 rounded-full ${lead ? 'bg-gradient-to-r from-brand to-ice' : 'bg-gradient-to-r from-brand/85 to-brand'}`}
+                  style={{ width: `${fill}%`, transition: 'width 700ms cubic-bezier(.22,1,.36,1)' }}
                 />
+                <BarText text={text} fill={fill} />
               </div>
               <div className={`w-[4.5vw] display tabular text-[3vw] ${lead ? 'text-ice' : 'text-white/70'}`}>{n}</div>
             </div>
