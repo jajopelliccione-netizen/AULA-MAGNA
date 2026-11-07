@@ -119,6 +119,7 @@ Le modalità dello schermo sono **Lobby, Karaoke, Musica, Impostore, Pausa**.
   - Qualunque sia la modalità, una canzone entra in coda solo se un admin l'ha approvata.
 - **Approvazione automatica** (interruttore nelle Impostazioni, separato per Karaoke e per Musica): con l'interruttore acceso le richieste entrano in coda da sole, in ordine di arrivo, e l'admin può sempre toglierle dalla coda. Se lo accendi, entrano subito anche quelle già in attesa. L'approvazione la fanno il pannello admin e il proiettore, quindi serve che almeno uno dei due sia aperto (con tutti e due aperti non c'è conflitto). Nessuna modifica alle regole di Firestore.
 - Si può avere una sola richiesta alla volta. L'ordine in coda è quello di approvazione.
+- **Priorità ai ragazzi**: le canzoni messe dall'admin sono un riempitivo e stanno **sempre dopo** quelle di chi prenota dal QR, anche se sono state aggiunte prima. Chi prenota dal QR passa davanti alle canzoni dell'admin; le canzoni dell'admin restano in ordine tra loro. Trascinando una canzone nella coda l'admin può comunque spostarla a mano: si sposta solo quella, le altre non cambiano.
 - Passando da Karaoke a Musica (o viceversa) con un brano in corso, il brano interrotto torna nella sua coda: chi stava cantando non perde il turno. Il gobbo mostra solo il karaoke.
 
 ## I tre schermi

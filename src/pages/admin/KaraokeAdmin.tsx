@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, PlayCircle, Plus, RotateCcw, Search, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
 import type { AppState, BannedDoc, Kind, PresenceDoc, QueueItem } from '../../lib/types'
 import {
-  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setAutoApprove, setBookingsOpen, setGobboAudio, setPlayback, setPlayerStatus, startNextSong, setVolume, unban,
+  addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, moveInQueue, requestSkip, restartSong, setAutoApprove, setBookingsOpen, setGobboAudio, setPlayback, setPlayerStatus, startNextSong, setVolume, unban,
 } from '../../lib/actions'
 import { fetchVideoTitle, parseVideoId, searchSongs, thumbUrl, YtError, type YtResult } from '../../lib/youtube'
 import { useAct } from './act'
@@ -41,7 +41,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
     const from = queue.findIndex((q) => q.id === active.id)
     const to = queue.findIndex((q) => q.id === over.id)
     if (from < 0 || to < 0) return
-    Promise.resolve(act('ha riordinato la coda', () => reorderQueue(queue, arrayMove(queue, from, to)))).catch((err) => alert('Errore nel riordino: ' + err.message))
+    Promise.resolve(act('ha riordinato la coda', () => moveInQueue(queue, String(active.id), to))).catch((err) => alert('Errore nel riordino: ' + err.message))
   }
 
   return (
@@ -284,7 +284,8 @@ function AddSong({ kind, className = '' }: { kind: Kind; className?: string }) {
 
   return (
     <section className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
-      <h2 className="eyebrow text-xs">Aggiungi una canzone (va subito in coda)</h2>
+      <h2 className="eyebrow text-xs">Aggiungi una canzone (va in coda)</h2>
+      <p className="text-xs text-muted -mt-1.5">Le tue canzoni stanno sempre <b className="text-white/80">dopo quelle dei ragazzi</b>: chi prenota dal QR passa davanti.</p>
 
       <form onSubmit={search} className="flex gap-2">
         <div className="relative flex-1">

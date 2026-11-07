@@ -78,7 +78,8 @@ export async function switchMode(mode: Mode, current: AppState) {
       nicknameKey: nicknameKey(np.nickname),
       uid: np.uid,
       createdAt: np.bookedAt,
-      order: np.bookedAt,
+      // un brano dell'admin torna in fondo, dopo quelli dei ragazzi (nessun campo order: vale la regola di priorità)
+      ...(np.uid === 'manual' ? {} : { order: np.bookedAt }),
     })
     batch.set(stateRef(), { mode, hold: true, nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null }, { merge: true })
     await batch.commit()
@@ -149,19 +150,21 @@ export async function approveAll(ids: string[], nowMs: number) {
   await batch.commit()
 }
 
-/** Dopo un drag&drop riassegna le chiavi d'ordine esistenti (crescenti) alla nuova sequenza. */
-export async function reorderQueue(before: QueueItem[], after: QueueItem[]) {
-  const keys = before.map((q) => q.key)
-  for (let i = 1; i < keys.length; i++) if (keys[i] <= keys[i - 1]) keys[i] = keys[i - 1] + 1
-  const batch = writeBatch(db)
-  let n = 0
-  after.forEach((item, i) => {
-    if (item.key !== keys[i] || item.order === undefined) {
-      batch.update(doc(db, 'queue', item.id), { order: keys[i] })
-      n++
-    }
-  })
-  if (n) await batch.commit()
+/**
+ * Trascinamento nella coda: si sposta SOLO la canzone trascinata, con una chiave a metà tra i suoi nuovi vicini.
+ * Le altre non vengono toccate, quindi la regola «i ragazzi passano davanti alle canzoni dell'admin» resta valida
+ * per tutte le canzoni non trascinate e per quelle che arriveranno.
+ */
+export async function moveInQueue(queue: QueueItem[], id: string, newIndex: number) {
+  const without = queue.filter((q) => q.id !== id)
+  const prev = without[newIndex - 1]
+  const next = without[newIndex]
+  let key: number
+  if (prev && next) key = prev.key === next.key ? prev.key + 0.001 : (prev.key + next.key) / 2
+  else if (prev) key = prev.key + 1000
+  else if (next) key = next.key - 1000
+  else return
+  await updateDoc(doc(db, 'queue', id), { order: key })
 }
 
 /** Avanza la coda: il primo brano diventa "nowPlaying" e viene tolto dalla coda. */

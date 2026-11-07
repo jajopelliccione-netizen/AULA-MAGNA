@@ -69,6 +69,14 @@ export function useGame(enabled = true) {
 }
 
 /**
+ * Le canzoni messe dall'admin (uid «manual») sono un riempitivo: stanno SEMPRE dopo quelle dei ragazzi
+ * (arrivati dal QR), anche se sono state aggiunte prima. Valgono solo finché l'admin non riordina a mano
+ * la coda: dopo un riordino (campo "order") vale la sua scelta.
+ */
+export const ADMIN_BEHIND_MS = 1e13
+export const queueKey = (uid: string, createdAt: number) => (uid === 'manual' ? createdAt + ADMIN_BEHIND_MS : createdAt)
+
+/**
  * Richieste di canzoni. `queue` = solo quelle APPROVATE (la coda vera), `pending` = in attesa di approvazione.
  * Con `kind` si filtra per karaoke o musica.
  */
@@ -89,7 +97,7 @@ export function useQueue(kind?: Kind, enabled = true) {
       uid: String(d.uid ?? ''),
       createdAt,
       order,
-      key: order ?? createdAt,
+      key: order ?? queueKey(String(d.uid ?? ''), createdAt),
     }
   })
   const sortFn = (a: QueueItem, b: QueueItem) => a.key - b.key || a.id.localeCompare(b.id)
