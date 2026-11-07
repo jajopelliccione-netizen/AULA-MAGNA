@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, PlayCircle, Plus, RotateCcw, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
+import { Ban, Captions, Check, GripVertical, Lock, Mic, Music2, Pause, Play, PlayCircle, Plus, RotateCcw, Search, SkipForward, Trash2, Unlock, Volume2, X } from 'lucide-react'
 import type { AppState, BannedDoc, Kind, PresenceDoc, QueueItem } from '../../lib/types'
 import {
   addManualSong, approveAll, approveRequest, banNickname, rejectRequest, removeFromQueue, reorderQueue, requestSkip, restartSong, setAutoApprove, setBookingsOpen, setGobboAudio, setPlayback, setPlayerStatus, startNextSong, setVolume, unban,
 } from '../../lib/actions'
-import { fetchVideoTitle, parseVideoId, thumbUrl } from '../../lib/youtube'
+import { fetchVideoTitle, parseVideoId, searchSongs, thumbUrl, YtError, type YtResult } from '../../lib/youtube'
 import { useAct } from './act'
 
 const LABELS: Record<Kind, { stage: string; mode: string; manual: string }> = {
@@ -107,7 +107,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
           )}
         </section>
 
-        <section className="order-5 lg:order-none card p-4 sm:p-5 flex flex-col gap-1">
+        <section className="order-6 lg:order-none card p-4 sm:p-5 flex flex-col gap-1">
           <h2 className="eyebrow text-xs mb-2">Impostazioni</h2>
           <Switch
             on={state.bookingsOpen}
@@ -139,7 +139,7 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
           />}
         </section>
 
-        <AddSong kind={kind} className="order-6 lg:order-none" />
+        <AddSong kind={kind} className="order-4 lg:order-none" />
       </div>
 
       {/* ---------- colonna destra: coda e ban ---------- */}
@@ -208,38 +208,132 @@ function Row({ item, index, presence, queue }: { item: QueueItem; index: number;
   )
 }
 
+/** Aggiunta di una canzone da parte dell'admin: si cerca come fanno i ragazzi (oppure si incolla un link) e va subito in coda. */
 function AddSong({ kind, className = '' }: { kind: Kind; className?: string }) {
   const act = useAct()
+  const [q, setQ] = useState('')
+  const [onlyKaraoke, setOnlyKaraoke] = useState(true)
+  const [results, setResults] = useState<YtResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [adding, setAdding] = useState<string | null>(null)
+  const [who, setWho] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  // link (alternativa alla ricerca)
   const [link, setLink] = useState('')
   const [title, setTitle] = useState('')
-  const [who, setWho] = useState('')
   const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
-  const submit = async (e: FormEvent) => {
+
+  const nick = () => who.trim() || 'Admin'
+
+  const search = async (e: FormEvent) => {
+    e.preventDefault()
+    if (q.trim().length < 2) return
+    setSearching(true)
+    setErr('')
+    setMsg('')
+    try {
+      // per il karaoke, "solo karaoke" tiene le basi con testo; spento cerca qualsiasi video musicale
+      const r = await searchSongs(q, kind === 'karaoke' && onlyKaraoke ? 'karaoke' : 'music')
+      setResults(r)
+      if (r.length === 0) setErr('Nessun risultato: prova con titolo + artista')
+    } catch (ex) {
+      setErr(ex instanceof YtError ? ex.message : 'Errore nella ricerca')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const add = async (r: YtResult) => {
+    setAdding(r.videoId)
+    setErr('')
+    try {
+      await act(`ha aggiunto «${r.title}» in coda`, () => addManualSong(r.videoId, r.title, nick(), kind))
+      setMsg(`Aggiunta in coda: ${r.title}`)
+      setResults([])
+      setQ('')
+      setWho('')
+    } catch (ex) {
+      setErr((ex as Error).message)
+    } finally {
+      setAdding(null)
+    }
+  }
+
+  const submitLink = async (e: FormEvent) => {
     e.preventDefault()
     const id = parseVideoId(link)
     if (!id) return setErr('Link o ID YouTube non valido')
     setBusy(true)
     setErr('')
+    setMsg('')
     try {
       const t = title.trim() || (await fetchVideoTitle(id)) || 'Video YouTube'
-      await act(`ha aggiunto «${t}» in coda`, () => addManualSong(id, t, who.trim() || 'Admin', kind))
-      setLink(''); setTitle(''); setWho('')
+      await act(`ha aggiunto «${t}» in coda`, () => addManualSong(id, t, nick(), kind))
+      setMsg(`Aggiunta in coda: ${t}`)
+      setLink('')
+      setTitle('')
+      setWho('')
     } catch (ex) {
       setErr((ex as Error).message)
     } finally {
       setBusy(false)
     }
   }
+
   return (
-    <form onSubmit={submit} className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
-      <h2 className="eyebrow text-xs">Aggiungi una canzone a mano (va subito in coda)</h2>
-      <input className="input" placeholder="Link YouTube o ID video" value={link} onChange={(e) => setLink(e.target.value)} />
-      <input className="input" placeholder="Titolo (facoltativo)" value={title} onChange={(e) => setTitle(e.target.value)} />
+    <section className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
+      <h2 className="eyebrow text-xs">Aggiungi una canzone (va subito in coda)</h2>
+
+      <form onSubmit={search} className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input className="input !pl-10" type="search" enterKeyHint="search" placeholder={kind === 'karaoke' ? 'Cerca titolo e artista' : 'Cerca una canzone'} value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <button className="btn btn-primary shrink-0" disabled={searching || q.trim().length < 2}>{searching ? '…' : 'Cerca'}</button>
+      </form>
+
       <input className="input" placeholder={LABELS[kind].manual} value={who} onChange={(e) => setWho(e.target.value)} maxLength={16} />
+
+      {kind === 'karaoke' && (
+        <label className="flex items-center gap-2.5 text-sm text-muted cursor-pointer select-none">
+          <input type="checkbox" className="w-4 h-4 accent-[#2f93f0]" checked={onlyKaraoke} onChange={(e) => setOnlyKaraoke(e.target.checked)} />
+          Mostra solo basi karaoke
+        </label>
+      )}
+
+      {msg && <p className="text-good text-sm flex items-center gap-2"><Check className="w-4 h-4 shrink-0" /> {msg}</p>}
       {err && <p className="text-bad text-sm">{err}</p>}
-      <button className="btn btn-primary py-3" disabled={busy || !link.trim()}><Plus className="w-4 h-4" /> {busy ? 'Aggiungo…' : 'Aggiungi in coda'}</button>
-    </form>
+
+      {results.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {results.map((r) => (
+            <li key={r.videoId} className="rounded-2xl bg-white/[.045] border border-line p-2 flex items-center gap-2.5">
+              <img src={r.thumbnail} alt="" loading="lazy" className="w-20 sm:w-24 aspect-video object-cover rounded-lg bg-surface-2 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold leading-snug line-clamp-2">{r.title}</div>
+                <div className="text-xs text-muted truncate">{r.channel}</div>
+              </div>
+              <button className="btn btn-primary px-3 py-2.5 shrink-0" disabled={adding !== null} onClick={() => add(r)}>
+                {adding === r.videoId ? '…' : <><Plus className="w-4 h-4" /> Aggiungi</>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <details className="group rounded-xl border border-line bg-white/[.03]">
+        <summary className="cursor-pointer select-none px-3.5 py-2.5 text-sm text-muted hover:text-white list-none flex items-center justify-between">
+          Hai un link? Incollalo <span className="transition group-open:rotate-180">⌄</span>
+        </summary>
+        <form onSubmit={submitLink} className="flex flex-col gap-2 p-3.5 pt-1">
+          <input className="input" placeholder="Link YouTube o ID video" value={link} onChange={(e) => setLink(e.target.value)} />
+          <input className="input" placeholder="Titolo (facoltativo)" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <button className="btn" disabled={busy || !link.trim()}><Plus className="w-4 h-4" /> {busy ? 'Aggiungo…' : 'Aggiungi dal link'}</button>
+        </form>
+      </details>
+    </section>
   )
 }
 
