@@ -6,58 +6,90 @@ import { setActionClock } from './actions'
 import { snapData } from './util'
 import { DEFAULT_GAME, DEFAULT_STATE, type AppState, type Game, type Kind, type PlayerDoc, type QueueItem, type PresenceDoc, type BannedDoc, type RequestStatus } from './types'
 
-/** Ascolta un documento. Se non esiste restituisce il fallback. */
-export function useDoc<T extends object>(path: string | null, fallback: T): { data: T; ready: boolean } {
+/** Attesa prima di riprovare un ascolto caduto: 3, 6, 10, poi 15 secondi. */
+const retryDelay = (n: number) => [3000, 6000, 10000][n] ?? 15000
+
+/** Ascolta un documento. Se non esiste restituisce il fallback. Se l'ascolto cade (errore del server) riprova da solo. */
+export function useDoc<T extends object>(path: string | null, fallback: T): { data: T; ready: boolean; error: string; hasData: boolean } {
   const fb = useRef(fallback)
   const [data, setData] = useState<T>(fallback)
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState('')
+  const [hasData, setHasData] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (!path) {
       setData(fb.current)
       setReady(false)
+      setHasData(false)
+      setError('')
       return
     }
-    return onSnapshot(
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const unsub = onSnapshot(
       doc(db, path),
       (s) => {
         const d = snapData<T>(s)
         setData(d ? ({ ...fb.current, ...d } as T) : fb.current)
         setReady(true)
+        setHasData(true)
+        setError('')
+        retries.current = 0
       },
       (e) => {
         console.error('[doc]', path, e)
         setReady(true)
+        setError((e as { code?: string }).code ?? 'errore')
+        timer = setTimeout(() => setAttempt((n) => n + 1), retryDelay(retries.current++))
       },
     )
-  }, [path])
-  return { data, ready }
+    return () => {
+      unsub()
+      clearTimeout(timer)
+    }
+  }, [path, attempt])
+  const retries = useRef(0)
+  return { data, ready, error, hasData }
 }
 
-/** Ascolta una collezione e la trasforma con map. */
-export function useCollection<T>(path: string | null, map: (id: string, d: Record<string, unknown>) => T): { items: T[]; ready: boolean } {
+/** Ascolta una collezione e la trasforma con map. Riprova da sola se l'ascolto cade. */
+export function useCollection<T>(path: string | null, map: (id: string, d: Record<string, unknown>) => T): { items: T[]; ready: boolean; error: string } {
   const mapRef = useRef(map)
   mapRef.current = map
   const [items, setItems] = useState<T[]>([])
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  const retries = useRef(0)
   useEffect(() => {
     if (!path) {
       setItems([])
       setReady(false)
+      setError('')
       return
     }
-    return onSnapshot(
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const unsub = onSnapshot(
       collection(db, path),
       (s) => {
         setItems(s.docs.map((d) => mapRef.current(d.id, snapData<Record<string, unknown>>(d) ?? {})))
         setReady(true)
+        setError('')
+        retries.current = 0
       },
       (e) => {
         console.error('[col]', path, e)
         setReady(true)
+        setError((e as { code?: string }).code ?? 'errore')
+        timer = setTimeout(() => setAttempt((n) => n + 1), retryDelay(retries.current++))
       },
     )
-  }, [path])
-  return { items, ready }
+    return () => {
+      unsub()
+      clearTimeout(timer)
+    }
+  }, [path, attempt])
+  return { items, ready, error }
 }
 
 export const useAppState = (enabled = true) => useDoc<AppState>(enabled ? 'state/current' : null, DEFAULT_STATE)
