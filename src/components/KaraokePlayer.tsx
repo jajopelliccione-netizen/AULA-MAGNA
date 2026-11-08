@@ -24,6 +24,8 @@ interface Props {
   /** master = schermo del proiettore (manda avanti la coda e pubblica la posizione); follower = gobbo */
   role: 'master' | 'follower'
   muted?: boolean
+  /** anticipo regolato dall'admin per questo schermo (ms) */
+  offsetMs?: number
   serverNow: () => number
   onEnded?: (queueId: string) => void
   onError?: (queueId: string) => void
@@ -33,7 +35,7 @@ interface Props {
  * Player YouTube a tutto riquadro. Il master pubblica la posizione del video su Firestore
  * e il follower si riallinea da solo (se scarta più di ~0,35 secondi fa un seek).
  */
-export default function KaraokePlayer({ state, active, role, muted = false, serverNow, onEnded, onError }: Props) {
+export default function KaraokePlayer({ state, active, role, muted = false, offsetMs = 0, serverNow, onEnded, onError }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<any>(null)
   const readyRef = useRef(false)
@@ -69,6 +71,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const activeRef = useRef(active)
   const mutedRef = useRef(muted)
   const nowRef = useRef(serverNow)
+  const offsetRef = useRef(offsetMs)
+  offsetRef.current = offsetMs
   const cbRef = useRef({ onEnded, onError })
   stateRef.current = state
   activeRef.current = active
@@ -92,7 +96,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     const s = stateRef.current
     const sy = s.sync
     if (!s.nowPlaying || !sy || sy.queueId !== s.nowPlaying.queueId) return null
-    return sy.paused ? sy.pos : Math.max(0, (nowRef.current() - sy.base) / 1000)
+    const adj = role === 'follower' ? offsetRef.current / 1000 : 0
+    return sy.paused ? sy.pos + adj : Math.max(0, (nowRef.current() - sy.base) / 1000 + adj)
   }
 
   const publish = (force = false) => {
@@ -225,6 +230,25 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     }
   }
 
+  // l'admin cambia l'anticipo di questo schermo: dopo un attimo si riallinea subito (un solo salto)
+  const lastOffset = useRef(offsetMs)
+  useEffect(() => {
+    if (lastOffset.current === offsetMs) return
+    lastOffset.current = offsetMs
+    const tm = setTimeout(() => {
+      const p = playerRef.current
+      if (!p || !readyRef.current || role !== 'follower' || p.getPlayerState?.() !== 1) return
+      const e = expectedPos()
+      if (e === null) return
+      lastSeek.current = Date.now()
+      seekAt.current = Date.now()
+      seekBuffered.current = false
+      p.seekTo?.(e + (lagMs.current || 300) / 1000, true)
+    }, 1000)
+    return () => clearTimeout(tm)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offsetMs])
+
   // misura del riquadro che contiene il video (serve alla modalità leggera)
   useEffect(() => {
     const el = hostRef.current?.parentElement
@@ -351,7 +375,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         } else bf.since = 0
         if (DEBUG) {
           const e2 = role === 'follower' ? expectedPos() : null
-          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'} avvio=${loadLag}ms salti=${alignSeeks.current}+${lateSeeks.current}`)
+          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'} anticipo=${offsetRef.current}ms avvio=${loadLag}ms salti=${alignSeeks.current}+${lateSeeks.current}`)
         }
       }
       // video che «carica e basta»: se il tempo non avanza da qualche secondo mentre dovrebbe suonare, il browser lo ha bloccato

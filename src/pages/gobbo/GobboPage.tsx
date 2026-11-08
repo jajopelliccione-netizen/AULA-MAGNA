@@ -29,7 +29,7 @@ function GobboInner() {
   const { queue } = useQueue('karaoke')
   const serverNow = useServerClock()
   useNow(100)
-  useScreenSelf('gobbo', lim, started)
+  const { offsetMs } = useScreenSelf('gobbo', lim, started)
   const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
 
@@ -50,7 +50,7 @@ function GobboInner() {
       <KioskLayer kiosk={kiosk} />
       {stateError && <div className="fixed top-[1vh] left-1/2 -translate-x-1/2 z-[80] rounded-full bg-warn/90 text-black px-[1.4vw] py-[.6vh] text-[1.2vw] font-semibold">Collegamento interrotto ({stateError}): riprovo da solo</div>}
       {outdated && <ScreenUpdateChip onReload={() => { allowReload(); window.location.reload() }} />}
-      {ready && hasData && <KaraokePlayer state={state} active={active} role="follower" muted={!state.gobboAudio} serverNow={serverNow} />}
+      {ready && hasData && <KaraokePlayer state={state} active={active} role="follower" offsetMs={offsetMs} muted={!state.gobboAudio} serverNow={serverNow} />}
 
       {/* in attesa: prima/dopo le canzoni o con un'altra modalità attiva */}
       {(!active || (!np && state.playerStatus !== 'between' && state.playerStatus !== 'waiting')) && (

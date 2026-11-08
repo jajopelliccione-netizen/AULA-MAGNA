@@ -17,6 +17,8 @@ export interface ScreenDoc {
   name: string
   lim: boolean
   lastSeen: number
+  /** anticipo (ms) per compensare il ritardo di questo schermo: + = lo schermo suona prima */
+  offsetMs: number
 }
 
 const ROLE_ORDER: Record<ScreenRole, number> = { principale: 0, secondo: 1, gobbo: 2 }
@@ -40,7 +42,7 @@ export function deviceId(): string {
 const screenPath = (id: string) => `state/screen-${id}`
 
 /** Da usare sugli schermi: segnala che è acceso e restituisce il nome dato dall'admin (vuoto se non ne ha). */
-export function useScreenSelf(role: ScreenRole, lim: boolean, enabled: boolean): string {
+export function useScreenSelf(role: ScreenRole, lim: boolean, enabled: boolean): { name: string; offsetMs: number } {
   const { user } = useAuth()
   const [id] = useState(deviceId)
   useEffect(() => {
@@ -50,15 +52,15 @@ export function useScreenSelf(role: ScreenRole, lim: boolean, enabled: boolean):
     const t = setInterval(beat, 20_000)
     return () => clearInterval(t)
   }, [enabled, user, id, role, lim])
-  const { data } = useDoc<{ name?: string }>(enabled && user ? screenPath(id) : null, {})
-  return (data.name ?? '').trim()
+  const { data } = useDoc<{ name?: string; offsetMs?: number }>(enabled && user ? screenPath(id) : null, {})
+  return { name: (data.name ?? '').trim(), offsetMs: Number(data.offsetMs) || 0 }
 }
 
 /** Per l'admin: tutti gli schermi che si sono mai collegati. */
 export function useScreens(enabled = true) {
   const { items } = useCollection<ScreenDoc | null>(enabled ? 'state' : null, (id, d) =>
     id.startsWith('screen-') && d.kind === 'screen'
-      ? { id: id.slice(7), role: (d.role as ScreenRole) ?? 'secondo', name: String(d.name ?? ''), lim: !!d.lim, lastSeen: (d.lastSeen as number | undefined) ?? 0 }
+      ? { id: id.slice(7), role: (d.role as ScreenRole) ?? 'secondo', name: String(d.name ?? ''), lim: !!d.lim, lastSeen: (d.lastSeen as number | undefined) ?? 0, offsetMs: Number(d.offsetMs) || 0 }
       : null,
   )
   return items.filter((x): x is ScreenDoc => !!x).sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || a.id.localeCompare(b.id))
@@ -66,3 +68,5 @@ export function useScreens(enabled = true) {
 
 export const setScreenName = (id: string, name: string) => setDoc(doc(db, screenPath(id)), { name: name.trim().slice(0, 40) }, { merge: true })
 export const forgetScreen = (id: string) => deleteDoc(doc(db, screenPath(id)))
+
+export const setScreenOffset = (id: string, ms: number) => setDoc(doc(db, screenPath(id)), { offsetMs: Math.max(-3000, Math.min(3000, Math.round(ms))) }, { merge: true })

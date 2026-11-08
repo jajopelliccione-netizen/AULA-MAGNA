@@ -10,7 +10,7 @@ import { QR, QRCard, shortUrl } from './QR'
 import { useKaraokeController } from './useKaraokeController'
 
 /** Schermo del proiettore in modalità karaoke o musica: video + coda + QR. Qui gira anche il controller della coda. */
-export default function KaraokeStage({ state, queue, active, serverNow, kind, follower = false, venue = '' }: { venue?: string; follower?: boolean; state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number; kind: Kind }) {
+export default function KaraokeStage({ state, queue, active, serverNow, kind, follower = false, venue = '', offsetMs = 0 }: { offsetMs?: number; venue?: string; follower?: boolean; state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number; kind: Kind }) {
   const { finish, toast } = useKaraokeController(state, queue, active && !follower, kind)
   const music = kind === 'music'
   useNow(100)
@@ -28,6 +28,7 @@ export default function KaraokeStage({ state, queue, active, serverNow, kind, fo
           state={state}
           active={active}
           role={follower ? 'follower' : 'master'}
+          offsetMs={offsetMs}
           serverNow={serverNow}
           onEnded={(id) => finish(id)}
           onError={(id) => finish(id, 'Video non riproducibile: passo al prossimo')}

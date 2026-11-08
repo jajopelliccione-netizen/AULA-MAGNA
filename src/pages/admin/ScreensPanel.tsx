@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Lock, Monitor, Trash2 } from 'lucide-react'
-import { forgetScreen, SCREEN_ONLINE_MS, setScreenName, useScreens, type ScreenDoc } from '../../lib/screens'
+import { Lock, Minus, Monitor, Plus, Trash2 } from 'lucide-react'
+import { forgetScreen, SCREEN_ONLINE_MS, setScreenName, setScreenOffset, useScreens, type ScreenDoc } from '../../lib/screens'
 import type { Act } from './act'
 
 const ROLE: Record<ScreenDoc['role'], string> = { principale: 'Proiettore principale', secondo: 'Secondo schermo', gobbo: 'Gobbo' }
@@ -59,6 +59,19 @@ function ScreenRow({ s, on, act }: { s: ScreenDoc; on: boolean; act: Act }) {
         />
         <button className="btn btn-secondary shrink-0" onClick={save}>Salva</button>
       </div>
+      {s.role !== 'principale' && (
+        <div className="flex items-center gap-1.5 flex-wrap text-xs" data-testid="screen-offset">
+          <span className="text-muted mr-1" title="Se questo schermo suona in ritardo rispetto al principale, aumenta l’anticipo">Anticipo</span>
+          {[-100, -25].map((d) => (
+            <button key={d} className="btn btn-secondary !px-2 !py-1" aria-label={`Anticipo ${d} millisecondi`} onClick={() => act(`ha regolato l’anticipo di uno schermo a ${s.offsetMs + d} ms`, () => setScreenOffset(s.id, s.offsetMs + d))}><Minus className="w-3 h-3" />{-d}</button>
+          ))}
+          <span className="font-semibold text-white tabular min-w-[4.5rem] text-center" data-testid="offset-value">{s.offsetMs > 0 ? '+' : ''}{s.offsetMs} ms</span>
+          {[25, 100].map((d) => (
+            <button key={d} className="btn btn-secondary !px-2 !py-1" aria-label={`Anticipo +${d} millisecondi`} onClick={() => act(`ha regolato l’anticipo di uno schermo a ${s.offsetMs + d} ms`, () => setScreenOffset(s.id, s.offsetMs + d))}><Plus className="w-3 h-3" />{d}</button>
+          ))}
+          {s.offsetMs !== 0 && <button className="text-muted underline ml-1" onClick={() => act('ha azzerato l’anticipo di uno schermo', () => setScreenOffset(s.id, 0))}>Azzera</button>}
+        </div>
+      )}
     </div>
   )
 }

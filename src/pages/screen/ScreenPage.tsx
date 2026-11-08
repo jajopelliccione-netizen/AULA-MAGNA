@@ -35,7 +35,7 @@ function ScreenInner() {
   const { players } = usePlayers(state.mode === 'impostor')
   const { count } = usePresence()
   const serverNow = useServerClock()
-  const screenName = useScreenSelf(second ? 'secondo' : 'principale', lim, started)
+  const { name: screenName, offsetMs } = useScreenSelf(second ? 'secondo' : 'principale', lim, started)
   const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
   useAutoApprove(state, allRequests, ready && !second)
@@ -64,7 +64,7 @@ function ScreenInner() {
       {/* Con i comandi touch la schermata di gioco si rimpicciolisce per lasciare spazio alla barra in basso: nulla viene coperto */}
       <div className="absolute left-0 top-0 w-screen h-screen origin-top" style={{ transform: `scale(${scale})`, transition: 'transform .25s ease' }}>
       {/* Karaoke e musica restano montati per tenere vivo il player */}
-      <KaraokeStage venue={screenName} follower={second} state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
+      <KaraokeStage offsetMs={offsetMs} venue={screenName} follower={second} state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
       {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} venue={screenName} /></div>}
       {state.mode === 'pause' && <div className="absolute inset-0"><PauseScreen message={state.message} /></div>}
       {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} serverNow={serverNow} /></div>}
