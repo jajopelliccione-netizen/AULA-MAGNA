@@ -214,8 +214,7 @@ export function useServerClock(): () => number {
           const snap = await getDocFromServer(ref)
           const t1 = Date.now()
           const srv = (snap.data()?.lastSeen as { toMillis: () => number } | undefined)?.toMillis()
-          if (srv) // il timestamp del server nasce a ~1/4 del giro completo (andata della scrittura; poi ritorno e lettura): non a metà
-            samples.push({ rtt: t1 - t0, off: srv - (t0 + (t1 - t0) / 4) })
+          if (srv) samples.push({ rtt: t1 - t0, off: srv - (t0 + t1) / 2 })
           if (srv && samples.length === 1 && !stop) offset.current = samples[0].off // stima subito disponibile, poi affinata
         } catch (e) {
           console.warn('[clock]', e)

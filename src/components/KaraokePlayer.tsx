@@ -51,7 +51,6 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const loadAt = useRef(0)
   const loadCalledAt = useRef(0)
   const alignSeeks = useRef(0)
-  const pubDev = useRef(0)
   // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
   const aligned = useRef(false)
   const prog = useRef({ time: -1, at: 0, handledAt: 0 })
@@ -103,12 +102,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     const paused = stateRef.current.playerStatus === 'paused'
     const base = Math.round(nowRef.current() - pos * 1000)
     const last = lastPub.current
-    if (!force && last && last.queueId === np.queueId && last.paused === paused && !paused) {
-      // il tempo pubblicato si corregge se si scosta di più di ~50 ms per due controlli di fila (ignora i piccoli sbalzi di lettura)
-      if (Math.abs(base - last.base) <= 50) { pubDev.current = 0; return }
-      if (++pubDev.current < 2) return
-    } else if (!force && last && last.queueId === np.queueId && last.paused === paused) return
-    pubDev.current = 0
+    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 150)) return
     lastPub.current = { queueId: np.queueId, base, paused }
     publishSync({ queueId: np.queueId, base, paused, pos }).catch(() => {})
   }
@@ -407,8 +401,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       // All'inizio il secondo schermo resta MUTO mentre si allinea (uno o due salti che non si sentono); quando è allineato
       // accende l'audio e da lì in poi non lo tocca più, salvo scarti grandi e duraturi (es. dopo un blocco della rete).
       if (!aligned.current) {
-        if (ad > 0.07) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
-        const need = driftSince.current > 0 && t - driftSince.current > 600 && t - lastSeek.current > 2200 && alignSeeks.current < 3
+        if (ad > 0.1) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+        const need = driftSince.current > 0 && t - driftSince.current > 600 && t - lastSeek.current > 2200 && alignSeeks.current < 2
         if (need) {
           alignSeeks.current++
           driftSince.current = 0
@@ -416,17 +410,16 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
           seekAt.current = t
           seekBuffered.current = false
           p.seekTo?.(exp + (lagMs.current || 300) / 1000, true)
-        } else if (ad <= 0.07 || alignSeeks.current >= 3 || t - loadAt.current > 10000) {
+        } else if (ad <= 0.1 || alignSeeks.current >= 2 || t - loadAt.current > 10000) {
           aligned.current = true
           if (keepMuted.current && !mutedRef.current) tryUnmute()
         }
         return
       }
-      // dopo l'allineamento: salti solo per scarti che durano (rari e precisi); più sono grandi, prima scattano
-      if (ad > 0.15) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+      // dopo l'allineamento il video non si tocca più: salti solo per scarti grandi e duraturi (es. dopo un blocco della rete)
+      if (ad > 1.2) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
       const dur = driftSince.current > 0 ? t - driftSince.current : 0
-      const due = (ad > 3 && t - lastSeek.current > 3000) || (ad > 1.2 && dur > 3000 && t - lastSeek.current > 10000) || (dur > 5000 && t - lastSeek.current > 30000)
-      if (due) {
+      if ((ad > 3 && t - lastSeek.current > 3000) || (dur > 3000 && t - lastSeek.current > 10000)) {
         driftSince.current = 0
         lastSeek.current = t
         seekAt.current = t
