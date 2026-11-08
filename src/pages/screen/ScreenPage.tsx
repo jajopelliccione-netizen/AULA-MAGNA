@@ -5,7 +5,7 @@ import { useAppState, useGame, usePlayers, usePresence, useQueue, useServerClock
 import { ensureInitialDocs } from '../../lib/actions'
 import { useOutdated } from '../../lib/version'
 import { useAutoApprove } from '../../lib/autoApprove'
-import { allowReload, limRequested, saveLim, useKioskLock } from '../../lib/kiosk'
+import { allowReload, limRequested, saveLim, saveSecond, secondRequested, useKioskLock } from '../../lib/kiosk'
 import { KioskLayer } from '../../components/KioskLayer'
 import KaraokeStage from './KaraokeStage'
 import ImpostorScreen from './ImpostorScreen'
@@ -23,6 +23,7 @@ export default function ScreenPage() {
 function ScreenInner() {
   const [started, setStarted] = useState(false)
   const [lim, setLim] = useState(limRequested)
+  const [second, setSecond] = useState(secondRequested)
   const [dockH, setDockH] = useState(0)
   const onDockHeight = useCallback((h: number) => setDockH(h), [])
   const { data: state, ready } = useAppState()
@@ -34,7 +35,7 @@ function ScreenInner() {
   const serverNow = useServerClock()
   const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
-  useAutoApprove(state, allRequests, ready)
+  useAutoApprove(state, allRequests, ready && !second)
 
   // nuova versione del sito: ricarica da solo, ma solo quando non c'è un brano o una partita in corso
   const idle = !state.nowPlaying && state.playerStatus !== 'between' && (state.mode !== 'impostor' || game.status === 'lobby' || game.status === 'reveal')
@@ -54,7 +55,7 @@ function ScreenInner() {
     return () => { document.body.style.cursor = '' }
   }, [started])
 
-  if (!started) return <ScreenStart label="Schermo proiettore" hint="Il clic serve per attivare l'audio del browser" lim={lim} onLim={(v) => { setLim(v); saveLim(v) }} onStart={() => setStarted(true)} />
+  if (!started) return <ScreenStart label="Schermo proiettore" hint="Il clic serve per attivare l'audio del browser" lim={lim} onLim={(v) => { setLim(v); saveLim(v) }} second={second} onSecond={(v) => { setSecond(v); saveSecond(v) }} onStart={() => setStarted(true)} />
   if (!ready) return <div className="h-full bg-stage grid place-items-center eyebrow text-[2vw]">Mi collego…</div>
 
   // altezza della barra comandi → fattore di riduzione del gioco (1 = nessuna barra)
@@ -66,7 +67,7 @@ function ScreenInner() {
       {/* Con i comandi touch la schermata di gioco si rimpicciolisce per lasciare spazio alla barra in basso: nulla viene coperto */}
       <div className="absolute left-0 top-0 w-screen h-screen origin-top" style={{ transform: `scale(${scale})`, transition: 'transform .25s ease' }}>
       {/* Karaoke e musica restano montati per tenere vivo il player */}
-      <KaraokeStage state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
+      <KaraokeStage follower={second} state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
       {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} /></div>}
       {state.mode === 'pause' && <div className="absolute inset-0"><PauseScreen message={state.message} /></div>}
       {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} serverNow={serverNow} /></div>}

@@ -157,6 +157,15 @@ Dal pannello admin, nel riquadro «Cosa mostra lo schermo», l'interruttore **Co
   - *L'impostore*: scelta di categoria e numero di impostori, Inizia la partita, Inizia il primo giro, Prossimo giocatore (e Indietro), Altro giro o Si vota, Mostra il risultato, Nuova partita.
 - Ogni azione fatta dallo schermo compare nell'**Attività** del pannello admin con autore «Schermo». Con l'interruttore spento lo schermo è solo da guardare. Va d'accordo con la modalità LIM bloccata.
 
+## Più schermi / LIM insieme (audio sincronizzato)
+
+Su **un solo** schermo apri `/schermo` normalmente: è quello che comanda coda e video. Su **tutti gli altri** apri `/schermo?secondo` oppure, nella schermata «Clicca per avviare», spunta **Secondo schermo** (il dispositivo se lo ricorda). I secondi schermi:
+- non toccano mai la coda (niente avanzamenti doppi);
+- partono con lo stesso brano e si riallineano al principale se sfasano di più di ~0,35 secondi (controllo ogni secondo, anche dopo pausa, «Da capo» o buffering);
+- hanno l'audio acceso, quindi con due LIM in stanze diverse si sente la stessa musica insieme.
+
+Limite fisico: con YouTube la sincronia è dell'ordine di 0,2–0,4 secondi; se le due LIM sono nella stessa stanza e sentite un leggero «eco», abbassate l'audio di una delle due.
+
 ## Modalità LIM (schermo bloccato)
 
 Per un proiettore su una **LIM touch** così nessuno può uscire dall'app e rovinare coda o gioco:

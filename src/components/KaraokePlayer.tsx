@@ -19,7 +19,7 @@ interface Props {
 
 /**
  * Player YouTube a tutto riquadro. Il master pubblica la posizione del video su Firestore
- * e il follower si riallinea da solo (se scarta più di ~1,2 secondi fa un seek).
+ * e il follower si riallinea da solo (se scarta più di ~0,35 secondi fa un seek).
  */
 export default function KaraokePlayer({ state, active, role, muted = false, serverNow, onEnded, onError }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -72,7 +72,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     const paused = stateRef.current.playerStatus === 'paused'
     const base = Math.round(nowRef.current() - pos * 1000)
     const last = lastPub.current
-    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 1200)) return
+    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 400)) return
     lastPub.current = { queueId: np.queueId, base, paused }
     publishSync({ queueId: np.queueId, base, paused, pos }).catch(() => {})
   }
@@ -261,8 +261,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       const exp = expectedPos()
       if (exp === null) return
       const cur = Number(p.getCurrentTime?.() ?? 0)
-      if (Math.abs(cur - exp) > (s.sync?.paused ? 0.6 : 1.2)) p.seekTo?.(exp, true)
-    }, 1500)
+      if (Math.abs(cur - exp) > (s.sync?.paused ? 0.3 : 0.35)) p.seekTo?.(exp, true)
+    }, 1000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role])

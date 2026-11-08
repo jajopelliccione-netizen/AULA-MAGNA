@@ -144,3 +144,19 @@ export function useKioskLock(requested: boolean, started: boolean, remoteNonce: 
 
   return { locked, fsLost: locked && armed && fsLost, unlocked: requested && started && unlocked, reenter, unlock, relock }
 }
+
+/** Questo dispositivo è un «secondo schermo»: mostra lo stesso video del principale senza comandare la coda. */
+export function secondRequested(): boolean {
+  try {
+    if (new URLSearchParams(window.location.search).has('secondo')) return true
+    return localStorage.getItem('aula.secondScreen') === '1'
+  } catch {
+    return false
+  }
+}
+
+export function saveSecond(on: boolean) {
+  try {
+    localStorage.setItem('aula.secondScreen', on ? '1' : '0')
+  } catch { /* ok */ }
+}

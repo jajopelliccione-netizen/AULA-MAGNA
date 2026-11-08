@@ -1,9 +1,9 @@
-import { Lock, Play } from 'lucide-react'
+import { Copy, Lock, Play } from 'lucide-react'
 import { BRAND } from '../lib/brand'
 import { Logo } from './Logo'
 
 /** Schermata iniziale di /schermo e /gobbo: il clic sblocca l'audio del browser e attiva lo schermo intero. */
-export function ScreenStart({ label, hint, lim, onLim, onStart }: { label: string; hint: string; lim: boolean; onLim: (on: boolean) => void; onStart: () => void }) {
+export function ScreenStart({ label, hint, lim, onLim, onStart, second, onSecond }: { label: string; hint: string; lim: boolean; onLim: (on: boolean) => void; onStart: () => void; second?: boolean; onSecond?: (on: boolean) => void }) {
   return (
     <div className="h-full bg-stage flex flex-col items-center justify-center">
       <button
@@ -29,6 +29,13 @@ export function ScreenStart({ label, hint, lim, onLim, onStart }: { label: strin
         <Lock className="w-[1.6vw] h-[1.6vw] text-ice" />
         <span><b className="text-white">Modalità LIM</b>: blocca l'uscita dal tutto schermo (si sblocca solo con la password admin)</span>
       </label>
+      {onSecond && (
+        <label className="mt-[1.6vh] flex items-center gap-[1vw] text-[1.4vw] text-muted cursor-pointer select-none card px-[1.6vw] py-[1.2vh]">
+          <input type="checkbox" className="w-[1.6vw] h-[1.6vw] accent-[#2f93f0]" checked={!!second} onChange={(e) => onSecond(e.target.checked)} />
+          <Copy className="w-[1.6vw] h-[1.6vw] text-ice" />
+          <span><b className="text-white">Secondo schermo</b>: segue il principale in sincronia (da spuntare su tutti gli schermi tranne uno)</span>
+        </label>
+      )}
     </div>
   )
 }
