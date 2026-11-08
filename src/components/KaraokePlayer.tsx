@@ -35,7 +35,6 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const seekAt = useRef(0)
   const seekBuffered = useRef(false)
   const lagMs = useRef(0)
-  const rate = useRef(1)
   const driftSince = useRef(0)
   const loadAt = useRef(0)
   const pubTick = useRef(0)
@@ -187,7 +186,6 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       seekBuffered.current = false
       driftSince.current = 0
       loadAt.current = Date.now()
-      rate.current = 1
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -222,7 +220,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
             if (e.data === YT.PlayerState.PLAYING && seekAt.current) {
               // il ritardo si impara solo se dopo il seek il video ha davvero caricato; altrimenti il seek è stato immediato
               const lag = seekBuffered.current ? Date.now() - seekAt.current : 0
-              if (lag < 4000) lagMs.current = Math.min(1500, lagMs.current * 0.5 + lag * 0.5)
+              if (lag < 4000) lagMs.current = Math.min(1500, lagMs.current ? lagMs.current * 0.3 + lag * 0.7 : lag)
               seekAt.current = 0
               seekBuffered.current = false
             }
@@ -303,27 +301,16 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       // mai toccare il video mentre sta caricando (altrimenti il «caricamento» non finisce più) né subito dopo un salto o un avvio
       if (st !== 1) { driftSince.current = 0; return }
       if (t - lastSeek.current < 3000 || t - loadAt.current < 2500) { driftSince.current = 0; return }
-      if (ad > 1) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
-      const sustained = driftSince.current > 0 && t - driftSince.current > 2000
-      // i salti (che fanno ricaricare il video) solo per scarti grandi e rari; gli scarti piccoli si recuperano cambiando di poco la velocità
-      if ((ad > 2.5 && t - lastSeek.current > 3000) || (sustained && t - lastSeek.current > 8000)) {
+      // niente accelerazioni né rallentamenti: su YouTube fanno suonare la voce «veloce» e a scatti.
+      // Si corregge con un solo salto preciso (che tiene conto del tempo di ripartenza), e solo se lo scarto dura.
+      if (ad > 0.3) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+      const sustained = driftSince.current > 0 && t - driftSince.current > 1500
+      if ((ad > 2.5 && t - lastSeek.current > 3000) || (sustained && t - lastSeek.current > 10000)) {
         driftSince.current = 0
         lastSeek.current = t
         seekAt.current = t
         seekBuffered.current = false
-        rate.current = 1
-        p.setPlaybackRate?.(1)
         p.seekTo?.(exp + lagMs.current / 1000, true)
-        return
-      }
-      if (rate.current === 1) {
-        if (ad > 0.08 && ad <= 2.5) {
-          rate.current = drift > 0 ? 0.75 : 1.25
-          p.setPlaybackRate?.(rate.current)
-        }
-      } else if (ad < 0.03 || (rate.current === 0.75) !== (drift > 0)) {
-        rate.current = 1
-        p.setPlaybackRate?.(1)
       }
     }, 200)
     return () => clearInterval(t)
