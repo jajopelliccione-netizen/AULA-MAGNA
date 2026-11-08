@@ -108,7 +108,6 @@ export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchStat
 let clockFn: () => number = () => Date.now()
 export const setActionClock = (fn: () => number) => { clockFn = fn }
 export const clockNow = () => clockFn()
-export const setVenueName = (venueName: string) => patchState({ venueName: venueName.trim().slice(0, 40) })
 export const setScreenControls = (screenControls: boolean) => patchState({ screenControls })
 export const setPlayback = (playback: Playback) => patchState({ playback })
 export const setImpostorConfig = (config: ImpostorConfig) => patchState({ impostorConfig: config })

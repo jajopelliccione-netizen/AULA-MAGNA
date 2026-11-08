@@ -10,7 +10,7 @@ import { QR, QRCard, shortUrl } from './QR'
 import { useKaraokeController } from './useKaraokeController'
 
 /** Schermo del proiettore in modalità karaoke o musica: video + coda + QR. Qui gira anche il controller della coda. */
-export default function KaraokeStage({ state, queue, active, serverNow, kind, follower = false }: { follower?: boolean; state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number; kind: Kind }) {
+export default function KaraokeStage({ state, queue, active, serverNow, kind, follower = false, venue = '' }: { venue?: string; follower?: boolean; state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number; kind: Kind }) {
   const { finish, toast } = useKaraokeController(state, queue, active && !follower, kind)
   const music = kind === 'music'
   useNow(100)
@@ -99,7 +99,7 @@ export default function KaraokeStage({ state, queue, active, serverNow, kind, fo
               <>
                 <div className="flex flex-col gap-[2.4vh] max-w-[30vw]">
                   <Logo size={Math.round(window.innerHeight * 0.13)} className="anim-floaty" />
-                  <div className="eyebrow text-[1.6vw]">{music ? 'Musica' : 'Karaoke'}{state.venueName ? ` · ${state.venueName}` : ''}</div>
+                  <div className="eyebrow text-[1.6vw]">{music ? 'Musica' : 'Karaoke'}{venue ? ` · ${venue}` : ''}</div>
                   <div className="display grad-text text-[5.8vw]">{state.bookingsOpen ? (music ? 'Scegli la musica!' : 'Prenota la tua canzone!') : 'Richieste chiuse'}</div>
                   {state.bookingsOpen && (
                     <ol className="flex flex-col gap-[1.2vh] text-[1.5vw] font-medium text-white/85">

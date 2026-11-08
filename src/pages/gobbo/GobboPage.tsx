@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { StaffGate } from '../../components/StaffGate'
 import { ScreenUpdateChip } from '../../components/UpdateBanner'
+import { useScreenSelf } from '../../lib/screens'
 import { ScreenStart } from '../../components/ScreenStart'
 import KaraokePlayer from '../../components/KaraokePlayer'
 import { Logo } from '../../components/Logo'
@@ -28,6 +29,7 @@ function GobboInner() {
   const { queue } = useQueue('karaoke')
   const serverNow = useServerClock()
   useNow(100)
+  useScreenSelf('gobbo', lim, started)
   const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
 

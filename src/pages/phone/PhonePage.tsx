@@ -34,7 +34,7 @@ export default function PhonePage() {
   const bannedByNick = useDoc<{ nickname?: string }>(nick && ready ? `banned/${nicknameKey(nick)}` : null, {})
   const isBanned = Boolean(bannedByUid.data.nickname || bannedByNick.data.nickname)
 
-  const { data: state } = useAppState(ready && !isBanned)
+  const { data: state } = useAppState(ready && !!nick && !isBanned)
   const outdated = useOutdated()
   // nuova versione: se il telefono è in attesa (lobby o pausa) si aggiorna da solo, altrimenti compare un avviso
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function PhonePage() {
     )
   }
 
-  if (!nick) return <NickForm venue={state.venueName} ready={ready} error={error} onDone={(n) => { try { localStorage.setItem(NICK_KEY, n) } catch { /* ok */ } setNick(n) }} />
+  if (!nick) return <NickForm ready={ready} error={error} onDone={(n) => { try { localStorage.setItem(NICK_KEY, n) } catch { /* ok */ } setNick(n) }} />
 
   return (
     <Shell
@@ -145,7 +145,7 @@ function Center({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 grid place-content-center justify-items-center text-center p-6">{children}</div>
 }
 
-function NickForm({ venue, ready, error, onDone }: { venue?: string; ready: boolean; error: string | null; onDone: (n: string) => void }) {
+function NickForm({ ready, error, onDone }: { ready: boolean; error: string | null; onDone: (n: string) => void }) {
   const [value, setValue] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -180,7 +180,6 @@ function NickForm({ venue, ready, error, onDone }: { venue?: string; ready: bool
         <div className="flex flex-col items-center text-center gap-5">
           <Logo size={112} className="drop-shadow-[0_20px_40px_rgba(47,147,240,.45)]" />
           <div>
-            {venue && <div className="eyebrow text-sm">{venue}</div>}
             <h1 className="display grad-text text-[3.4rem] mt-1.5">{BRAND.title}</h1>
             <div className="display text-white text-2xl mt-1.5">{BRAND.school} <span className="text-brand">·</span> {BRAND.city}</div>
           </div>

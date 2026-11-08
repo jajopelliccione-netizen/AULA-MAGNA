@@ -166,6 +166,10 @@ Su **un solo** schermo apri `/schermo` normalmente: è quello che comanda coda e
 
 Nelle prove (lettore simulato, orologi sfasati di secondi e velocità diverse) lo scarto medio è sotto 60 ms. Con YouTube vero dipende da rete e dispositivo; se le due LIM sono nella stessa stanza e sentite un leggero «eco», abbassate l'audio di una delle due.
 
+## Schermi collegati e nomi (nel pannello admin)
+
+Ogni schermo (proiettore, secondo schermo, gobbo) segnala di essere acceso. Nel pannello admin, sotto «Cosa mostra lo schermo», la sezione **Schermi collegati** li elenca **uno per uno** (Acceso/Spento, ruolo, se è in modalità LIM) e permette di dare a ciascuno il **suo nome** (es. «LIM 1ª B»): quel nome compare solo su quello schermo. Uno schermo spento da più di un minuto risulta «Spento» e si può togliere dall'elenco col cestino. Non serve ripubblicare le regole Firestore: i dati stanno in `state/screen-<codice>`, dove gli admin possono già scrivere.
+
 ## Modalità LIM (schermo bloccato)
 
 Per un proiettore su una **LIM touch** così nessuno può uscire dall'app e rovinare coda o gioco:
