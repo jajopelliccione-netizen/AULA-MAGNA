@@ -8,6 +8,8 @@ import type { AppState } from '../lib/types'
 // iPad/iPhone: lì il browser è severo con l'audio e con i salti su video muti, quindi niente fase «muta» di allineamento
 const IS_IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
+const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')
+
 interface Props {
   state: AppState
   /** false = il player resta caricato ma in pausa (modalità diversa da karaoke) */
@@ -43,6 +45,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
   const aligned = useRef(false)
   const prog = useRef({ time: -1, at: 0, handledAt: 0 })
+  const buf = useRef({ since: 0, retries: 0, queueId: '' })
+  const [diag, setDiag] = useState('')
   const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
@@ -288,6 +292,31 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         // non insistere mentre il video si sta ancora avviando: richiamare play a raffica può ritardarlo
         if (st === 2 || ((st === 5 || st === -1) && Date.now() - loadAt.current > 4000)) p.playVideo?.()
       }
+      // «ruota del caricamento» che non finisce: dopo qualche secondo si ricarica il video da capo (più leggero), massimo 3 volte
+      {
+        const np = s.nowPlaying
+        const bf = buf.current
+        if (bf.queueId !== np.queueId) { bf.queueId = np.queueId; bf.retries = 0; bf.since = 0 }
+        const st3 = p.getPlayerState?.()
+        if (st3 === 3 && s.playerStatus === 'playing') {
+          if (!bf.since) bf.since = Date.now()
+          else if (Date.now() - bf.since > 8000 && bf.retries < 3) {
+            bf.retries++
+            bf.since = Date.now()
+            const exp3 = role === 'follower' ? expectedPos() : null
+            keepMuted.current = !(role === 'follower' && mutedRef.current)
+            if (keepMuted.current) p.mute?.()
+            p.loadVideoById({ videoId: np.videoId, startSeconds: exp3 && exp3 > 2 ? exp3 : 0, suggestedQuality: bf.retries >= 2 ? 'small' : 'medium' })
+            p.setPlaybackQuality?.(bf.retries >= 2 ? 'small' : 'medium')
+            loadAt.current = Date.now()
+            aligned.current = role !== 'follower' || IS_IOS
+          }
+        } else bf.since = 0
+        if (DEBUG) {
+          const e2 = role === 'follower' ? expectedPos() : null
+          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'}`)
+        }
+      }
       // video che «carica e basta»: se il tempo non avanza da qualche secondo mentre dovrebbe suonare, il browser lo ha bloccato
       // (tipico di iPad/Safari): si mostra «Tocca per attivare l'audio», e il tocco lo fa partire
       {
@@ -368,6 +397,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   return (
     <>
       <div ref={hostRef} className={`yt-host absolute inset-0 ${tap === 'native' ? 'interactive' : ''}`} />
+      {DEBUG && diag && <div className="absolute top-[1vw] left-[1vw] z-30 rounded bg-black/80 px-[1vw] py-[.6vh] text-[1.3vw] font-mono text-yellow-300 pointer-events-none">{diag}</div>}
       {tap === 'unmute' && (
         <button className="absolute inset-0 z-20 grid place-items-center bg-black/55 backdrop-blur-[2px]" onClick={onTap}>
           <span className="card flex flex-col items-center gap-[1.4vh] px-[3vw] py-[3vh] ring-1 ring-brand/60">
