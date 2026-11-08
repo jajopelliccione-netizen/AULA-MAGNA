@@ -33,8 +33,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const attempting = useRef(false)
   const lastSeek = useRef(0)
   const seekAt = useRef(0)
+  const seekBuffered = useRef(false)
   const lagMs = useRef(0)
   const rate = useRef(1)
+  const driftSince = useRef(0)
   const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
@@ -180,6 +182,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       p.loadVideoById(start && start > 2 ? { videoId: np.videoId, startSeconds: start } : np.videoId)
       loadedRef.current = np.queueId
       lastPub.current = null
+      seekAt.current = 0
+      seekBuffered.current = false
+      driftSince.current = 0
+      rate.current = 1
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -210,10 +216,13 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
           onStateChange: (e: any) => {
             const np = stateRef.current.nowPlaying
             if (!np || np.queueId !== loadedRef.current) return
+            if (e.data === YT.PlayerState.BUFFERING && seekAt.current) seekBuffered.current = true
             if (e.data === YT.PlayerState.PLAYING && seekAt.current) {
-              const lag = Date.now() - seekAt.current
-              if (lag < 5000) lagMs.current = Math.min(1500, lagMs.current * 0.5 + lag * 0.5)
+              // il ritardo si impara solo se dopo il seek il video ha davvero caricato; altrimenti il seek è stato immediato
+              const lag = seekBuffered.current ? Date.now() - seekAt.current : 0
+              if (lag < 4000) lagMs.current = Math.min(1500, lagMs.current * 0.5 + lag * 0.5)
               seekAt.current = 0
+              seekBuffered.current = false
             }
             if (e.data === YT.PlayerState.PLAYING && keepMuted.current && !(role === 'follower' && mutedRef.current)) tryUnmute()
             if (e.data === YT.PlayerState.ENDED && role === 'master') cbRef.current.onEnded?.(np.queueId)
@@ -279,6 +288,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       const exp = expectedPos()
       if (exp === null) return
       const cur = Number(p.getCurrentTime?.() ?? 0)
+      if (seekAt.current && Date.now() - seekAt.current > 3000) { seekAt.current = 0; seekBuffered.current = false }
       const drift = cur - exp // > 0: questo schermo è avanti
       const ad = Math.abs(drift)
       const paused = !!s.sync?.paused
@@ -286,10 +296,15 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         if (ad > 0.15 && Date.now() - lastSeek.current > 1000) { lastSeek.current = Date.now(); p.seekTo?.(exp, true) }
         return
       }
-      if (ad > 0.6 && Date.now() - lastSeek.current > 2000) {
+      // se dopo qualche secondo di correzione dolce lo scarto non è rientrato (velocità non supportata, rete lenta), si fa un seek
+      if (ad > 0.15) { if (!driftSince.current) driftSince.current = Date.now() } else driftSince.current = 0
+      const stuck = driftSince.current > 0 && Date.now() - driftSince.current > 2500
+      if ((ad > 0.6 || stuck) && Date.now() - lastSeek.current > (ad > 1.5 ? 800 : 2000)) {
+        driftSince.current = 0
         // scarto grande: seek, anticipando il tempo che il video impiega a ripartire (imparato dai seek precedenti)
         lastSeek.current = Date.now()
         seekAt.current = Date.now()
+        seekBuffered.current = false
         rate.current = 1
         p.setPlaybackRate?.(1)
         p.seekTo?.(exp + lagMs.current / 1000, true)

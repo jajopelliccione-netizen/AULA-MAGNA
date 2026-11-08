@@ -161,10 +161,10 @@ Dal pannello admin, nel riquadro «Cosa mostra lo schermo», l'interruttore **Co
 
 Su **un solo** schermo apri `/schermo` normalmente: è quello che comanda coda e video. Su **tutti gli altri** apri `/schermo?secondo` oppure, nella schermata «Clicca per avviare», spunta **Secondo schermo** (il dispositivo se lo ricorda). I secondi schermi:
 - non toccano mai la coda (niente avanzamenti doppi);
-- partono con lo stesso brano e si riallineano al principale se sfasano di più di ~0,35 secondi (controllo ogni secondo, anche dopo pausa, «Da capo» o buffering);
+- partono con lo stesso brano e si riallineano di continuo al principale (controllo cinque volte al secondo): i piccoli scarti si recuperano senza interruzioni accelerando o rallentando per pochi decimi di secondo, quelli grandi con un salto che tiene conto del tempo di ripartenza del video;
 - hanno l'audio acceso, quindi con due LIM in stanze diverse si sente la stessa musica insieme.
 
-Limite fisico: con YouTube la sincronia è dell'ordine di 0,2–0,4 secondi; se le due LIM sono nella stessa stanza e sentite un leggero «eco», abbassate l'audio di una delle due.
+Nelle prove (lettore simulato, orologi sfasati di secondi e velocità diverse) lo scarto medio è sotto 60 ms. Con YouTube vero dipende da rete e dispositivo; se le due LIM sono nella stessa stanza e sentite un leggero «eco», abbassate l'audio di una delle due.
 
 ## Modalità LIM (schermo bloccato)
 

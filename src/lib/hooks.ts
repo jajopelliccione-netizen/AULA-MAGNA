@@ -175,6 +175,7 @@ export function useServerClock(): () => number {
     const measure = async () => {
       const samples: { rtt: number; off: number }[] = []
       for (let i = 0; i < 8 && !stop; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 150 + Math.random() * 250))
         try {
           const t0 = Date.now()
           await setDoc(ref, { nickname: '_clock', nicknameKey: 'clock', lastSeen: serverTimestamp() })
@@ -182,10 +183,10 @@ export function useServerClock(): () => number {
           const t1 = Date.now()
           const srv = (snap.data()?.lastSeen as { toMillis: () => number } | undefined)?.toMillis()
           if (srv) samples.push({ rtt: t1 - t0, off: srv - (t0 + t1) / 2 })
+          if (srv && samples.length === 1 && !stop) offset.current = samples[0].off // stima subito disponibile, poi affinata
         } catch (e) {
           console.warn('[clock]', e)
         }
-        await new Promise((r) => setTimeout(r, 150 + Math.random() * 250))
       }
       // si tengono i campioni più veloci (errore minore) e se ne prende la mediana: scarta anche le letture
       // sporcate da un altro schermo che scrive lo stesso documento nello stesso istante
