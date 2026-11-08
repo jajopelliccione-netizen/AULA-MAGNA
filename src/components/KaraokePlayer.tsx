@@ -37,6 +37,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const lagMs = useRef(0)
   const driftSince = useRef(0)
   const loadAt = useRef(0)
+  // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
+  const aligned = useRef(false)
   const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
@@ -186,6 +188,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       seekBuffered.current = false
       driftSince.current = 0
       loadAt.current = Date.now()
+      aligned.current = role !== 'follower'
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -224,7 +227,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
               seekAt.current = 0
               seekBuffered.current = false
             }
-            if (e.data === YT.PlayerState.PLAYING && keepMuted.current && !(role === 'follower' && mutedRef.current)) tryUnmute()
+            if (e.data === YT.PlayerState.PLAYING && keepMuted.current && !(role === 'follower' && mutedRef.current) && aligned.current) tryUnmute()
             if (e.data === YT.PlayerState.ENDED && role === 'master') cbRef.current.onEnded?.(np.queueId)
             else if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) publish(e.data === YT.PlayerState.PAUSED)
           },
@@ -286,7 +289,14 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         return
       }
       const exp = expectedPos()
-      if (exp === null) return
+      if (exp === null) {
+        // il principale non ha (ancora) pubblicato la posizione: dopo qualche secondo si accende comunque l'audio
+        if (!aligned.current && Date.now() - loadAt.current > 9000) {
+          aligned.current = true
+          if (keepMuted.current && !mutedRef.current) tryUnmute()
+        }
+        return
+      }
       const cur = Number(p.getCurrentTime?.() ?? 0)
       if (seekAt.current && Date.now() - seekAt.current > 3000) { seekAt.current = 0; seekBuffered.current = false }
       const drift = cur - exp // > 0: questo schermo è avanti
@@ -301,11 +311,27 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       // mai toccare il video mentre sta caricando (altrimenti il «caricamento» non finisce più) né subito dopo un salto o un avvio
       if (st !== 1) { driftSince.current = 0; return }
       if (t - lastSeek.current < 3000 || t - loadAt.current < 2500) { driftSince.current = 0; return }
-      // niente accelerazioni né rallentamenti: su YouTube fanno suonare la voce «veloce» e a scatti.
-      // Si corregge con un solo salto preciso (che tiene conto del tempo di ripartenza), e solo se lo scarto dura.
-      if (ad > 0.3) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
-      const sustained = driftSince.current > 0 && t - driftSince.current > 1500
-      if ((ad > 2.5 && t - lastSeek.current > 3000) || (sustained && t - lastSeek.current > 10000)) {
+      // Nessuna accelerazione né rallentamento (su YouTube fanno suonare la voce veloce e a scatti).
+      // All'inizio il secondo schermo resta MUTO mentre si allinea (uno o due salti che non si sentono); quando è allineato
+      // accende l'audio e da lì in poi non lo tocca più, salvo scarti grandi e duraturi (es. dopo un blocco della rete).
+      if (!aligned.current) {
+        if (ad > 0.3) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+        const need = driftSince.current > 0 && t - driftSince.current > 800 && t - lastSeek.current > 3000
+        if (need) {
+          driftSince.current = 0
+          lastSeek.current = t
+          seekAt.current = t
+          seekBuffered.current = false
+          p.seekTo?.(exp + lagMs.current / 1000, true)
+        } else if (ad <= 0.3 || t - loadAt.current > 9000) {
+          aligned.current = true
+          if (keepMuted.current && !mutedRef.current) tryUnmute()
+        }
+        return
+      }
+      if (ad > 1.2) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+      const sustained = driftSince.current > 0 && t - driftSince.current > 3000
+      if ((ad > 3 && t - lastSeek.current > 3000) || (sustained && t - lastSeek.current > 10000)) {
         driftSince.current = 0
         lastSeek.current = t
         seekAt.current = t

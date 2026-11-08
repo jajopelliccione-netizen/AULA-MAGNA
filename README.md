@@ -161,7 +161,7 @@ Dal pannello admin, nel riquadro «Cosa mostra lo schermo», l'interruttore **Co
 
 Su **un solo** schermo apri `/schermo` normalmente: è quello che comanda coda e video. Su **tutti gli altri** apri `/schermo?secondo` oppure, nella schermata «Clicca per avviare», spunta **Secondo schermo** (il dispositivo se lo ricorda). I secondi schermi:
 - non toccano mai la coda (niente avanzamenti doppi);
-- partono con lo stesso brano e si riallineano di continuo al principale (controllo cinque volte al secondo): gli scarti si correggono con un solo salto preciso, che tiene conto del tempo di ripartenza del video (mai accelerando o rallentando, che farebbe suonare la voce veloce o a scatti);
+- partono con lo stesso brano e si riallineano di continuo al principale (controllo cinque volte al secondo): all'avvio di ogni canzone restano **muti** per qualche secondo, il tempo di allinearsi con uno o due salti che non si sentono; poi accendono l'audio e **non toccano più il video** (mai accelerazioni, che farebbero suonare la voce veloce o a scatti), salvo scarti grandi e duraturi dopo un blocco della rete;
 - hanno l'audio acceso, quindi con due LIM in stanze diverse si sente la stessa musica insieme.
 
 Nelle prove (lettore simulato, orologi sfasati di secondi e velocità diverse) lo scarto medio è sotto 60 ms. Con YouTube vero dipende da rete e dispositivo; se le due LIM sono nella stessa stanza e sentite un leggero «eco», abbassate l'audio di una delle due.
