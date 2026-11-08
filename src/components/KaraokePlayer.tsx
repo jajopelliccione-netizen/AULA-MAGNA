@@ -281,12 +281,18 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       // rete di sicurezza: se il video è fermo (pausa di YouTube con titolo e «Altri video») ma doveva andare, lo rimette in riproduzione
       if (s.playerStatus === 'playing' && tapRef.current === 'none') {
         const st = p.getPlayerState?.()
-        if (st === 2 || st === 5 || st === -1) p.playVideo?.()
+        // non insistere mentre il video si sta ancora avviando: richiamare play a raffica può ritardarlo
+        if (st === 2 || ((st === 5 || st === -1) && Date.now() - loadAt.current > 4000)) p.playVideo?.()
       }
       if (role === 'master') {
         pubTick.current = (pubTick.current + 1) % 5
         if (s.playerStatus === 'playing' && pubTick.current === 0) publish()
         return
+      }
+      // rete di sicurezza: l'audio del secondo schermo si accende comunque entro pochi secondi dall'avvio, qualunque cosa succeda
+      if (!aligned.current && Date.now() - loadAt.current > 5000) {
+        aligned.current = true
+        if (keepMuted.current && !mutedRef.current) tryUnmute()
       }
       const exp = expectedPos()
       if (exp === null) {
