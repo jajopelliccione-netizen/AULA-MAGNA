@@ -5,6 +5,9 @@ import { loadYT } from '../lib/yt'
 import { publishSync } from '../lib/actions'
 import type { AppState } from '../lib/types'
 
+// iPad/iPhone: lì il browser è severo con l'audio e con i salti su video muti, quindi niente fase «muta» di allineamento
+const IS_IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+
 interface Props {
   state: AppState
   /** false = il player resta caricato ma in pausa (modalità diversa da karaoke) */
@@ -39,6 +42,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const loadAt = useRef(0)
   // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
   const aligned = useRef(false)
+  const prog = useRef({ time: -1, at: 0, handledAt: 0 })
   const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
@@ -188,7 +192,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       seekBuffered.current = false
       driftSince.current = 0
       loadAt.current = Date.now()
-      aligned.current = role !== 'follower'
+      aligned.current = role !== 'follower' || IS_IOS
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -283,6 +287,18 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         const st = p.getPlayerState?.()
         // non insistere mentre il video si sta ancora avviando: richiamare play a raffica può ritardarlo
         if (st === 2 || ((st === 5 || st === -1) && Date.now() - loadAt.current > 4000)) p.playVideo?.()
+      }
+      // video che «carica e basta»: se il tempo non avanza da qualche secondo mentre dovrebbe suonare, il browser lo ha bloccato
+      // (tipico di iPad/Safari): si mostra «Tocca per attivare l'audio», e il tocco lo fa partire
+      {
+        const ct = Number(p.getCurrentTime?.() ?? 0)
+        const pr = prog.current
+        const nowMs = Date.now()
+        if (Math.abs(ct - pr.time) > 0.05 || pr.time < 0) { pr.time = ct; pr.at = nowMs }
+        else if (s.playerStatus === 'playing' && tapRef.current === 'none' && nowMs - pr.at > 4500 && nowMs - loadAt.current > 6000 && nowMs - pr.handledAt > 8000) {
+          pr.handledAt = nowMs
+          fallbackMuted()
+        }
       }
       if (role === 'master') {
         pubTick.current = (pubTick.current + 1) % 5
