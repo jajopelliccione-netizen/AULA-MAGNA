@@ -130,3 +130,7 @@ body {
 .kiosk-lock, .kiosk-lock * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .kiosk-lock { touch-action: none; overscroll-behavior: none; overflow: hidden; }
 .kiosk-lock input { -webkit-user-select: text; user-select: text; }
+
+/* modalità leggera (secondi schermi deboli): niente blur né animazioni continue che appesantiscono il video */
+.perf *, .perf *::before, .perf *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.perf .anim-floaty, .perf .anim-pulse, .perf .anim-flash, .perf .dot-live { animation: none !important; }

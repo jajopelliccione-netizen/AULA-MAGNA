@@ -68,6 +68,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   const activeRef = useRef(active)
   const mutedRef = useRef(muted)
   const restartAt = useRef(0)
+  const diagAt = useRef(0)
   const cuedRef = useRef('')
   const nowRef = useRef(serverNow)
   const offsetRef = useRef(offsetMs)
@@ -254,6 +255,12 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
     return () => ro.disconnect()
   }, [])
 
+  // schermi leggeri (iPad…): niente sfocature né animazioni sopra il video, che su dispositivi deboli fanno andare a scatti
+  useEffect(() => {
+    document.documentElement.classList.toggle('perf', lowRes)
+    return () => document.documentElement.classList.remove('perf')
+  }, [lowRes])
+
   const k = lowRes && box.w > 0 ? Math.min(box.w / LW, box.h / LH) : 1
   const hostStyle = lowRes && box.w > 0 ? { width: LW, height: LH, left: (box.w - LW * k) / 2, top: (box.h - LH * k) / 2, transform: `scale(${k})`, transformOrigin: '0 0' } : undefined
 
@@ -382,7 +389,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
             aligned.current = role !== 'follower' || IS_IOS
           }
         } else bf.since = 0
-        if (DEBUG) {
+        if (DEBUG && Date.now() - diagAt.current > 1000) {
+          diagAt.current = Date.now()
           const e2 = role === 'follower' ? expectedPos() : null
           setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} anticipo=${offsetRef.current}ms allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'}`)
         }
@@ -400,7 +408,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
         }
       }
       if (role === 'master') {
-        pubTick.current = (pubTick.current + 1) % 5
+        pubTick.current = (pubTick.current + 1) % 2
         if (s.playerStatus === 'playing' && pubTick.current === 0) publish()
         return
       }
@@ -467,7 +475,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
         seekBuffered.current = false
         p.seekTo?.(exp + lagMs.current / 1000, true)
       }
-    }, 200)
+    }, 500)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role])
