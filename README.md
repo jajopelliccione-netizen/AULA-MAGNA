@@ -148,12 +148,25 @@ Si azzerano a ogni «Nuova partita». Le regole Firestore permettono di scrivere
 - Durante il gioco (e con una richiesta di canzone in corso) lo **schermo resta acceso**: un telefono in stand-by riceve gli aggiornamenti in ritardo.
 - Se la connessione è assente da più di 4 secondi compare «Connessione instabile».
 
+## Comandi touch sullo schermo (LIM)
+
+Dal pannello admin, nel riquadro «Cosa mostra lo schermo», l'interruttore **Comandi touch sullo schermo (LIM)** fa gestire i giochi direttamente dal proiettore, senza passare dall'admin:
+- **Lobby**: compaiono tre grandi tasti «Tocca per giocare» (Karaoke, Musica, L'impostore).
+- **In ogni gioco**: un pulsante **Comandi** in basso apre un riquadro con tasti grandi, che si richiude da solo dopo 15 secondi.
+  - *Karaoke / Musica*: Avvia la canzone, Pausa/Riprendi, Salta, Da capo, Cambia gioco.
+  - *L'impostore*: scelta di categoria e numero di impostori, Inizia la partita, Inizia il primo giro, Prossimo giocatore (e Indietro), Altro giro o Si vota, Mostra il risultato, Nuova partita.
+- Ogni azione fatta dallo schermo compare nell'**Attività** del pannello admin con autore «Schermo». Con l'interruttore spento lo schermo è solo da guardare. Va d'accordo con la modalità LIM bloccata.
+
 ## Modalità LIM (schermo bloccato)
 
 Per un proiettore su una **LIM touch** così nessuno può uscire dall'app e rovinare coda o gioco:
 1. Apri `/schermo` (o `/gobbo`) sulla LIM con l'indirizzo **`/schermo?lim=1`** (o spunta «Modalità LIM» nella schermata iniziale: la scelta resta salvata) e premi **Clicca per avviare**.
 2. Lo schermo va a tutto schermo e **non si esce toccando**: tasto indietro, F5, F11, Esc, Ctrl+R, menu del tocco lungo, zoom e gesti a due dita sono bloccati. Se qualcuno riesce comunque a uscire dal tutto schermo compare «Schermo bloccato» e un tocco lo ripristina.
 3. **Solo l'admin può sbloccare**: tenendo premuto 2,5 secondi l'angolo in alto a sinistra e inserendo la **password dell'account admin**, oppure da qualsiasi altro dispositivo con **Schermi → Sblocca schermo LIM** nel pannello admin. Dopo lo sblocco compare un piccolo «Blocca di nuovo».
+
+**LIM Android** (il caso più comune): Chrome per Android supporta il tutto schermo, ma i tasti di sistema (Home, Recenti, barra della LIM) non si possono bloccare da una pagina web. Per un blocco totale:
+- usa **Fully Kiosk Browser** (app gratuita per Android, modalità chiosco con pagina iniziale fissa e uscita protetta da PIN): impostala su `https://aulamagna2026.pages.dev/schermo?lim=1`, oppure
+- attiva **Fissa app / Blocco schermo** di Android (Impostazioni → Sicurezza, il nome varia): apri Chrome sulla pagina, poi da «Recenti» tocca l'icona dell'app e scegli «Fissa». Si esce solo con il PIN o con la combinazione di tasti del sistema.
 
 Limite: una pagina web non può bloccare il sistema operativo (chiudere il browser dalla barra della LIM, ecc.). Per un blocco totale usa anche il **chiosco del browser**, ad esempio su Windows: `chrome.exe --kiosk --app=https://aulamagna2026.pages.dev/schermo?lim=1` (la LIM va poi lasciata con l'account in modalità chiosco/accesso assegnato, così senza tastiera non si esce).
 

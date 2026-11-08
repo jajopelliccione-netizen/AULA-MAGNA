@@ -103,6 +103,8 @@ export const setVolume = (volume: number) => patchState({ volume })
 export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsOpen })
 /** Riprendi (e sblocca la coda) / metti in pausa. */
 export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState(playerStatus === 'playing' ? { playerStatus, hold: false } : { playerStatus })
+/** Accende/spegne i comandi touch sullo schermo del proiettore (LIM). */
+export const setScreenControls = (screenControls: boolean) => patchState({ screenControls })
 export const setPlayback = (playback: Playback) => patchState({ playback })
 export const setImpostorConfig = (config: ImpostorConfig) => patchState({ impostorConfig: config })
 export const logAction = (by: string, text: string, at: number) => patchState({ lastAction: { by, text, at } })

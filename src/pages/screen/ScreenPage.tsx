@@ -10,6 +10,8 @@ import { KioskLayer } from '../../components/KioskLayer'
 import KaraokeStage from './KaraokeStage'
 import ImpostorScreen from './ImpostorScreen'
 import { LobbyScreen, PauseScreen } from './LobbyScreen'
+import ScreenControls from './ScreenControls'
+import { logAction, switchMode } from '../../lib/actions'
 
 export default function ScreenPage() {
   return (
@@ -57,9 +59,10 @@ function ScreenInner() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-ink relative">
       <KioskLayer kiosk={kiosk} />
+      {state.screenControls && <ScreenControls state={state} game={game} players={players} queue={queue} serverNow={serverNow} />}
       {/* Karaoke e musica restano montati per tenere vivo il player */}
       <KaraokeStage state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
-      {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} /></div>}
+      {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} onPick={state.screenControls ? (m) => { switchMode(m, state).then(() => logAction('Schermo', `ha scelto ${m === 'karaoke' ? 'il karaoke' : m === 'music' ? 'la musica' : 'l’impostore'} dallo schermo`, serverNow())).catch(() => {}) } : undefined} /></div>}
       {state.mode === 'pause' && <div className="absolute inset-0"><PauseScreen message={state.message} /></div>}
       {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} serverNow={serverNow} /></div>}
     </div>

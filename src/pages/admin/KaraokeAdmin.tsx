@@ -191,7 +191,7 @@ function Group({ title, children, last = false }: { title: string; children: Rea
   )
 }
 
-function Switch({ on, onChange, icon, title, hint }: { on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; hint: string }) {
+export function Switch({ on, onChange, icon, title, hint }: { on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; hint: string }) {
   return (
     <button onClick={() => onChange(!on)} className="w-full flex items-center gap-3 text-left rounded-xl px-2 py-2.5 hover:bg-white/[.05] transition" role="switch" aria-checked={on}>
       <span className={`grid place-items-center w-10 h-10 rounded-xl ${on ? 'bg-brand/20 text-ice' : 'bg-white/[.06] text-muted'}`}>{icon}</span>

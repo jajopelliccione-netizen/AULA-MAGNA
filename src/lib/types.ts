@@ -61,6 +61,8 @@ export interface AppState {
   gobboAudio: boolean
   /** approvazione automatica delle richieste, separata per karaoke e musica */
   autoApprove?: Partial<Record<Kind, boolean>>
+  /** comandi touch sullo schermo (LIM): i ragazzi scelgono il gioco e vanno avanti da soli */
+  screenControls?: boolean
   playback: Playback
   /** true = appena entrati in karaoke/musica: niente parte finché l'admin non avvia */
   hold: boolean

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { signOut } from 'firebase/auth'
-import { Activity, Captions, ChevronDown, ExternalLink, Home, LockOpen, LogOut, Menu, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, Captions, ChevronDown, Hand, ExternalLink, Home, LockOpen, LogOut, Menu, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { StaffGate } from '../../components/StaffGate'
 import { UpdateBanner } from '../../components/UpdateBanner'
@@ -8,9 +8,9 @@ import { BrandTitle } from '../../components/Logo'
 import { useAppState, useBanned, useGame, useLive, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { useOutdated } from '../../lib/version'
 import { useAutoApprove } from '../../lib/autoApprove'
-import { ensureInitialDocs, logAction, requestKioskUnlock, setImpostorConfig, setPauseMessage, switchMode } from '../../lib/actions'
+import { ensureInitialDocs, logAction, requestKioskUnlock, setImpostorConfig, setPauseMessage, setScreenControls, switchMode } from '../../lib/actions'
 import type { ImpostorConfig, LastAction, Mode } from '../../lib/types'
-import KaraokeAdmin from './KaraokeAdmin'
+import KaraokeAdmin, { Switch } from './KaraokeAdmin'
 import ImpostorAdmin from './ImpostorAdmin'
 import { ActCtx, type Act } from './act'
 
@@ -221,6 +221,16 @@ function AdminInner() {
                 )
               })}
             </div>
+            <div className="mt-3 sm:mt-4 border-t border-line pt-1.5">
+              <Switch
+                on={!!state.screenControls}
+                onChange={(v) => act(v ? 'ha attivato i comandi touch sullo schermo' : 'ha spento i comandi touch sullo schermo', () => setScreenControls(v))}
+                icon={<Hand className="w-5 h-5" />}
+                title="Comandi touch sullo schermo (LIM)"
+                hint={state.screenControls ? 'I ragazzi scelgono il gioco e vanno avanti toccando lo schermo' : 'Lo schermo è solo da guardare: gestisci tutto tu'}
+              />
+            </div>
+
             {state.mode === 'pause' && (
               <div className="mt-3 sm:mt-4 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-muted" htmlFor="pause-msg">Messaggio mostrato sullo schermo in pausa</label>
