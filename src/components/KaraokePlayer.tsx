@@ -54,6 +54,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   const loadCalledAt = useRef(0)
   const alignSeeks = useRef(0)
   const lateSeeks = useRef(0)
+  const restartAt = useRef(0)
+  const restartSeeks = useRef(0)
   // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
   const aligned = useRef(false)
   const prog = useRef({ time: -1, at: 0, handledAt: 0 })
@@ -325,7 +327,15 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   useEffect(() => {
     if (state.restartNonce === restartRef.current) return
     restartRef.current = state.restartNonce
-    if (role !== 'master') return
+    if (role !== 'master') {
+      // «Da capo»: anche i secondi schermi devono ripartire subito dall'inizio, senza i limiti sui salti correttivi
+      restartAt.current = Date.now()
+      restartSeeks.current = 0
+      lateSeeks.current = 0
+      driftSince.current = 0
+      lastSeek.current = 0
+      return
+    }
     const p = playerRef.current
     const np = stateRef.current.nowPlaying
     if (!p || !readyRef.current || !np || loadedRef.current !== np.queueId) return
@@ -440,6 +450,15 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
           aligned.current = true
           if (keepMuted.current && !mutedRef.current) tryUnmute()
         }
+        return
+      }
+      // subito dopo un «Da capo» si segue il principale al volo
+      if (t - restartAt.current < 12000 && ad > 0.15 && t - lastSeek.current > 2500 && restartSeeks.current < 3) {
+        restartSeeks.current++
+        lastSeek.current = t
+        seekAt.current = t
+        seekBuffered.current = false
+        p.seekTo?.(exp + (lagMs.current || 300) / 1000, true)
         return
       }
       // dopo l'allineamento il video non si tocca più: salti solo per scarti grandi e duraturi (es. dopo un blocco della rete)
