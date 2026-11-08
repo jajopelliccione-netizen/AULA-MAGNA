@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AppState, Kind, QueueItem } from '../../lib/types'
-import { BETWEEN_BY_KIND, beginBetween, finishCurrent, patchState, startNextSong } from '../../lib/actions'
+import { BETWEEN_BY_KIND, beginBetween, clockNow, finishCurrent, patchState, startNextSong } from '../../lib/actions'
 
 /**
  * Gestisce la coda. Gira SOLO sullo schermo del proiettore, quando la modalità è karaoke o musica.
@@ -40,7 +40,7 @@ export function useKaraokeController(state: AppState, queue: QueueItem[], active
       if (busyRef.current) return
       const s = stateRef.current
       const q = queueRef.current
-      const nowMs = Date.now()
+      const nowMs = clockNow()
       busyRef.current = true
       try {
         if (s.nowPlaying) return

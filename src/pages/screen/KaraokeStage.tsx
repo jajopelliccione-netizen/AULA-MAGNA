@@ -13,12 +13,12 @@ import { useKaraokeController } from './useKaraokeController'
 export default function KaraokeStage({ state, queue, active, serverNow, kind, follower = false }: { follower?: boolean; state: AppState; queue: QueueItem[]; active: boolean; serverNow: () => number; kind: Kind }) {
   const { finish, toast } = useKaraokeController(state, queue, active && !follower, kind)
   const music = kind === 'music'
-  const now = useNow(100)
+  useNow(100)
   const [qrSize] = useState(() => Math.round(Math.min(window.innerWidth * 0.115, window.innerHeight * 0.22)))
   const np = state.nowPlaying
   const head = queue[0]
   const next5 = queue.slice(0, 5)
-  const left = state.betweenEndsAt ? Math.max(0, state.betweenEndsAt - now) : 0
+  const left = state.betweenEndsAt ? Math.max(0, state.betweenEndsAt - serverNow()) : 0
 
   return (
     <div className={`${active ? '' : 'hidden'} h-full w-full bg-stage flex gap-[1.5vw] p-[1.5vw]`}>

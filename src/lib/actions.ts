@@ -104,6 +104,10 @@ export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsO
 /** Riprendi (e sblocca la coda) / metti in pausa. */
 export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState(playerStatus === 'playing' ? { playerStatus, hold: false } : { playerStatus })
 /** Accende/spegne i comandi touch sullo schermo del proiettore (LIM). */
+/** Ora condivisa (server): impostata da useServerClock, così tutti gli schermi contano lo stesso tempo anche con orologi diversi. */
+let clockFn: () => number = () => Date.now()
+export const setActionClock = (fn: () => number) => { clockFn = fn }
+export const clockNow = () => clockFn()
 export const setVenueName = (venueName: string) => patchState({ venueName: venueName.trim().slice(0, 40) })
 export const setScreenControls = (screenControls: boolean) => patchState({ screenControls })
 export const setPlayback = (playback: Playback) => patchState({ playback })
@@ -186,7 +190,7 @@ export async function startNextSong(head: QueueItem | undefined) {
     nickname: head.nickname,
     uid: head.uid,
     bookedAt: head.createdAt,
-    startedAt: Date.now(),
+    startedAt: clockFn(),
   }
   const batch = writeBatch(db)
   batch.delete(doc(db, 'queue', head.id))
@@ -203,12 +207,12 @@ export async function finishCurrent(hasNext: boolean, kind: Kind = 'karaoke', pl
     hasNext && playback === 'manual'
       ? { nowPlaying: null, playerStatus: 'waiting', betweenEndsAt: null, sync: null }
       : hasNext
-      ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_BY_KIND[kind], sync: null }
+      ? { nowPlaying: null, playerStatus: 'between', betweenEndsAt: clockFn() + BETWEEN_BY_KIND[kind], sync: null }
       : { nowPlaying: null, playerStatus: 'idle', betweenEndsAt: null, sync: null },
   )
 }
 
-export const beginBetween = (kind: Kind = 'karaoke') => patchState({ playerStatus: 'between', betweenEndsAt: Date.now() + BETWEEN_BY_KIND[kind] })
+export const beginBetween = (kind: Kind = 'karaoke') => patchState({ playerStatus: 'between', betweenEndsAt: clockFn() + BETWEEN_BY_KIND[kind] })
 
 /* ------------------------------- staff: ban ------------------------------- */
 

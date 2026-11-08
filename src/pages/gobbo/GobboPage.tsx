@@ -26,7 +26,7 @@ function GobboInner() {
   const { data: state, ready } = useAppState()
   const { queue } = useQueue('karaoke')
   const serverNow = useServerClock()
-  const now = useNow(100)
+  useNow(100)
   const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
   const idle = !state.nowPlaying && state.playerStatus !== 'between'
@@ -47,7 +47,7 @@ function GobboInner() {
   const active = state.mode === 'karaoke'
   const np = state.nowPlaying
   const head = queue[0]
-  const left = state.betweenEndsAt ? Math.max(0, state.betweenEndsAt - now) : 0
+  const left = state.betweenEndsAt ? Math.max(0, state.betweenEndsAt - serverNow()) : 0
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-black relative">

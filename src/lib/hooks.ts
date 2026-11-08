@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { collection, doc, getDocFromServer, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from './firebase'
 import { useAuth } from './auth'
+import { setActionClock } from './actions'
 import { snapData } from './util'
 import { DEFAULT_GAME, DEFAULT_STATE, type AppState, type Game, type Kind, type PlayerDoc, type QueueItem, type PresenceDoc, type BannedDoc, type RequestStatus } from './types'
 
@@ -197,7 +198,9 @@ export function useServerClock(): () => number {
       clearInterval(t)
     }
   }, [user])
-  return useCallback(() => Date.now() + offset.current, [])
+  const fn = useCallback(() => Date.now() + offset.current, [])
+  setActionClock(fn)
+  return fn
 }
 
 /**
