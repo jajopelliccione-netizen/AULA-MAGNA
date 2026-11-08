@@ -8,6 +8,11 @@ import type { AppState } from '../lib/types'
 // iPad/iPhone: lì il browser è severo con l'audio e con i salti su video muti, quindi niente fase «muta» di allineamento
 const IS_IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
+// Modalità leggera: il lettore YouTube viene tenuto a 854×480 e ingrandito con CSS. YouTube sceglie la qualità in base alla
+// grandezza del lettore, quindi scarica molto meno (utile con Wi-Fi lento o dispositivi deboli). ?leggero la forza.
+const LOWRES_URL = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('leggero')
+const LW = 854
+const LH = 480
 const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')
 
 interface Props {
@@ -47,6 +52,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const prog = useRef({ time: -1, at: 0, handledAt: 0 })
   const buf = useRef({ since: 0, retries: 0, queueId: '' })
   const [diag, setDiag] = useState('')
+  const [lowRes, setLowRes] = useState(() => LOWRES_URL || (role === 'follower' && IS_IOS))
+  const [box, setBox] = useState({ w: 0, h: 0 })
   const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
@@ -208,6 +215,20 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     }
   }
 
+  // misura del riquadro che contiene il video (serve alla modalità leggera)
+  useEffect(() => {
+    const el = hostRef.current?.parentElement
+    if (!el) return
+    const measure = () => setBox({ w: el.clientWidth, h: el.clientHeight })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const k = lowRes && box.w > 0 ? Math.min(box.w / LW, box.h / LH) : 1
+  const hostStyle = lowRes && box.w > 0 ? { width: LW, height: LH, left: (box.w - LW * k) / 2, top: (box.h - LH * k) / 2, transform: `scale(${k})`, transformOrigin: '0 0' } : undefined
+
   // creazione del player (una sola volta)
   useEffect(() => {
     let dead = false
@@ -308,13 +329,14 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
             if (keepMuted.current) p.mute?.()
             p.loadVideoById({ videoId: np.videoId, startSeconds: exp3 && exp3 > 2 ? exp3 : 0, suggestedQuality: bf.retries >= 2 ? 'small' : 'medium' })
             p.setPlaybackQuality?.(bf.retries >= 2 ? 'small' : 'medium')
+            setLowRes(true)
             loadAt.current = Date.now()
             aligned.current = role !== 'follower' || IS_IOS
           }
         } else bf.since = 0
         if (DEBUG) {
           const e2 = role === 'follower' ? expectedPos() : null
-          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'}`)
+          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'}`)
         }
       }
       // video che «carica e basta»: se il tempo non avanza da qualche secondo mentre dovrebbe suonare, il browser lo ha bloccato
@@ -396,7 +418,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
 
   return (
     <>
-      <div ref={hostRef} className={`yt-host absolute inset-0 ${tap === 'native' ? 'interactive' : ''}`} />
+      <div ref={hostRef} style={hostStyle} className={`yt-host absolute ${hostStyle ? '' : 'inset-0'} ${tap === 'native' ? 'interactive' : ''}`} />
       {DEBUG && diag && <div className="absolute top-[1vw] left-[1vw] z-30 rounded bg-black/80 px-[1vw] py-[.6vh] text-[1.3vw] font-mono text-yellow-300 pointer-events-none">{diag}</div>}
       {tap === 'unmute' && (
         <button className="absolute inset-0 z-20 grid place-items-center bg-black/55 backdrop-blur-[2px]" onClick={onTap}>

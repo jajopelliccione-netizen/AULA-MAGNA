@@ -170,6 +170,8 @@ Nelle prove (lettore simulato, orologi sfasati di secondi e velocità diverse) l
 
 Ogni schermo (proiettore, secondo schermo, gobbo) segnala di essere acceso. Nel pannello admin, sotto «Cosa mostra lo schermo», la sezione **Schermi collegati** li elenca **uno per uno** (Acceso/Spento, ruolo, se è in modalità LIM) e permette di dare a ciascuno il **suo nome** (es. «LIM 1ª B»): quel nome compare solo su quello schermo. Uno schermo spento da più di un minuto risulta «Spento» e si può togliere dall'elenco col cestino. Non serve ripubblicare le regole Firestore: i dati stanno in `state/screen-<codice>`, dove gli admin possono già scrivere.
 
+**Modalità leggera:** su iPad/iPhone usati come secondo schermo (e su qualunque schermo con `?leggero` nell'indirizzo, oppure automaticamente dopo un blocco del caricamento) il lettore YouTube viene tenuto a 854×480 e ingrandito: YouTube sceglie la qualità in base alla grandezza del lettore, quindi scarica molto meno ed è più fluido con Wi-Fi lento o dispositivi deboli. Il proiettore principale resta a qualità piena.
+
 **Diagnostica:** aprendo `/schermo?secondo&debug` compare in alto a sinistra una riga con lo stato del video (stato YouTube, tempo, tempo atteso, muto/allineato, quante volte è stato ricaricato). Utile per capire perché un secondo schermo non parte. Se la ruota del caricamento dura più di 8 secondi il video viene ricaricato da capo (fino a 3 volte, con qualità più bassa).
 
 ## Modalità LIM (schermo bloccato)
