@@ -24,6 +24,8 @@ interface Props {
   muted?: boolean
   /** anticipo regolato dall'admin per questo schermo (ms) */
   offsetMs?: number
+  /** il prossimo video in coda: viene preparato in anticipo, così all'avvio parte più in fretta */
+  nextVideoId?: string
   serverNow: () => number
   onEnded?: (queueId: string) => void
   onError?: (queueId: string) => void
@@ -33,7 +35,7 @@ interface Props {
  * Player YouTube a tutto riquadro. Il master pubblica la posizione del video su Firestore
  * e il follower si riallinea da solo (se scarta più di ~0,35 secondi fa un seek).
  */
-export default function KaraokePlayer({ state, active, role, muted = false, offsetMs = 0, serverNow, onEnded, onError }: Props) {
+export default function KaraokePlayer({ state, active, role, muted = false, offsetMs = 0, nextVideoId, serverNow, onEnded, onError }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<any>(null)
   const readyRef = useRef(false)
@@ -66,6 +68,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   const activeRef = useRef(active)
   const mutedRef = useRef(muted)
   const restartAt = useRef(0)
+  const cuedRef = useRef('')
   const nowRef = useRef(serverNow)
   const offsetRef = useRef(offsetMs)
   offsetRef.current = offsetMs
@@ -202,7 +205,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
         p.mute?.()
       }
       attempting.current = false
-      p.loadVideoById(start && start > 2 ? { videoId: np.videoId, startSeconds: start } : np.videoId)
+      p.loadVideoById({ videoId: np.videoId, ...(start && start > 2 ? { startSeconds: start } : {}), ...(lowRes ? { suggestedQuality: 'medium' } : {}) })
       loadedRef.current = np.queueId
       lastPub.current = null
       seekAt.current = 0
@@ -330,6 +333,20 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   }, [state.restartNonce])
 
   useEffect(sync, [state.nowPlaying?.queueId, state.playerStatus, state.volume, active, muted])
+
+  // tra una canzone e l'altra (conto alla rovescia / in attesa) si prepara già il prossimo video: all'avvio carica molto meno
+  useEffect(() => {
+    if (state.nowPlaying) { cuedRef.current = ''; return }
+    if (!nextVideoId || !active || cuedRef.current === nextVideoId) return
+    const tm = setTimeout(() => {
+      const p = playerRef.current
+      if (!p || !readyRef.current || stateRef.current.nowPlaying || !activeRef.current) return
+      cuedRef.current = nextVideoId
+      try { p.cueVideoById?.({ videoId: nextVideoId, suggestedQuality: lowRes ? 'medium' : undefined }) } catch { /* ok */ }
+    }, 600)
+    return () => clearTimeout(tm)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.nowPlaying?.queueId, nextVideoId, active])
 
   // master: ripubblica la posizione se cambia (seek, buffering); follower: si riallinea
   useEffect(() => {

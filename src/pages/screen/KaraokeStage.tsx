@@ -29,6 +29,7 @@ export default function KaraokeStage({ state, queue, active, serverNow, kind, fo
           active={active}
           role={follower ? 'follower' : 'master'}
           offsetMs={offsetMs}
+          nextVideoId={queue[0]?.videoId}
           serverNow={serverNow}
           onEnded={(id) => finish(id)}
           onError={(id) => finish(id, 'Video non riproducibile: passo al prossimo')}
