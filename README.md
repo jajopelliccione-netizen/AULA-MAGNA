@@ -151,9 +151,9 @@ Si azzerano a ogni «Nuova partita». Le regole Firestore permettono di scrivere
 ## Comandi touch sullo schermo (LIM)
 
 Dal pannello admin, nel riquadro «Cosa mostra lo schermo», l'interruttore **Comandi touch sullo schermo (LIM)** fa gestire i giochi direttamente dal proiettore, senza passare dall'admin:
-- **Lobby**: compaiono tre grandi tasti «Tocca per giocare» (Karaoke, Musica, L'impostore).
-- **In ogni gioco**: un pulsante **Comandi** in basso apre un riquadro con tasti grandi, che si richiude da solo dopo 15 secondi.
-  - *Karaoke / Musica*: Avvia la canzone, Pausa/Riprendi, Salta, Da capo, Cambia gioco.
+- Compare una **barra fissa in basso** e il gioco si rimpicciolisce un po' per farle spazio: la barra **non copre mai** nulla di ciò che è in scena.
+  - *Lobby / Pausa*: tasti Karaoke, Musica, L'impostore.
+  - *Karaoke / Musica*: Avvia la canzone, Pausa/Riprendi, Salta, Da capo, Giochi (torna alla scelta).
   - *L'impostore*: scelta di categoria e numero di impostori, Inizia la partita, Inizia il primo giro, Prossimo giocatore (e Indietro), Altro giro o Si vota, Mostra il risultato, Nuova partita.
 - Ogni azione fatta dallo schermo compare nell'**Attività** del pannello admin con autore «Schermo». Con l'interruttore spento lo schermo è solo da guardare. Va d'accordo con la modalità LIM bloccata.
 
