@@ -37,6 +37,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const lagMs = useRef(0)
   const rate = useRef(1)
   const driftSince = useRef(0)
+  const loadAt = useRef(0)
   const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
@@ -185,6 +186,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       seekAt.current = 0
       seekBuffered.current = false
       driftSince.current = 0
+      loadAt.current = Date.now()
       rate.current = 1
       setTap('none')
     }
@@ -292,31 +294,34 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       const drift = cur - exp // > 0: questo schermo è avanti
       const ad = Math.abs(drift)
       const paused = !!s.sync?.paused
+      const t = Date.now()
+      const st = p.getPlayerState?.()
       if (paused) {
-        if (ad > 0.15 && Date.now() - lastSeek.current > 1000) { lastSeek.current = Date.now(); p.seekTo?.(exp, true) }
+        if (ad > 0.15 && st !== 3 && t - lastSeek.current > 1500) { lastSeek.current = t; p.seekTo?.(exp, true) }
         return
       }
-      // se dopo qualche secondo di correzione dolce lo scarto non è rientrato (velocità non supportata, rete lenta), si fa un seek
-      if (ad > 0.15) { if (!driftSince.current) driftSince.current = Date.now() } else driftSince.current = 0
-      const stuck = driftSince.current > 0 && Date.now() - driftSince.current > 2500
-      if ((ad > 0.6 || stuck) && Date.now() - lastSeek.current > (ad > 1.5 ? 800 : 2000)) {
+      // mai toccare il video mentre sta caricando (altrimenti il «caricamento» non finisce più) né subito dopo un salto o un avvio
+      if (st !== 1) { driftSince.current = 0; return }
+      if (t - lastSeek.current < 3000 || t - loadAt.current < 2500) { driftSince.current = 0; return }
+      if (ad > 1) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+      const sustained = driftSince.current > 0 && t - driftSince.current > 2000
+      // i salti (che fanno ricaricare il video) solo per scarti grandi e rari; gli scarti piccoli si recuperano cambiando di poco la velocità
+      if ((ad > 2.5 && t - lastSeek.current > 3000) || (sustained && t - lastSeek.current > 8000)) {
         driftSince.current = 0
-        // scarto grande: seek, anticipando il tempo che il video impiega a ripartire (imparato dai seek precedenti)
-        lastSeek.current = Date.now()
-        seekAt.current = Date.now()
+        lastSeek.current = t
+        seekAt.current = t
         seekBuffered.current = false
         rate.current = 1
         p.setPlaybackRate?.(1)
         p.seekTo?.(exp + lagMs.current / 1000, true)
         return
       }
-      // scarto piccolo: si recupera senza interruzioni accelerando o rallentando per pochi decimi di secondo
       if (rate.current === 1) {
-        if (ad > 0.06 && ad <= 0.6) {
+        if (ad > 0.08 && ad <= 2.5) {
           rate.current = drift > 0 ? 0.75 : 1.25
           p.setPlaybackRate?.(rate.current)
         }
-      } else if (ad < 0.025 || (rate.current === 0.75) !== (drift > 0)) {
+      } else if (ad < 0.03 || (rate.current === 0.75) !== (drift > 0)) {
         rate.current = 1
         p.setPlaybackRate?.(1)
       }
