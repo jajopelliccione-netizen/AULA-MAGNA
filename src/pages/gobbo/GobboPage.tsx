@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { StaffGate } from '../../components/StaffGate'
+import { ScreenUpdateChip } from '../../components/UpdateBanner'
 import { ScreenStart } from '../../components/ScreenStart'
 import KaraokePlayer from '../../components/KaraokePlayer'
 import { Logo } from '../../components/Logo'
@@ -29,13 +30,6 @@ function GobboInner() {
   useNow(100)
   const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
-  const idle = !state.nowPlaying && state.playerStatus !== 'between'
-  useEffect(() => {
-    if (outdated && idle) {
-      allowReload()
-      window.location.reload()
-    }
-  }, [outdated, idle])
 
   useEffect(() => {
     document.body.style.cursor = started ? 'none' : ''
@@ -52,6 +46,7 @@ function GobboInner() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-black relative">
       <KioskLayer kiosk={kiosk} />
+      {outdated && <ScreenUpdateChip onReload={() => { allowReload(); window.location.reload() }} />}
       {ready && <KaraokePlayer state={state} active={active} role="follower" muted={!state.gobboAudio} serverNow={serverNow} />}
 
       {/* in attesa: prima/dopo le canzoni o con un'altra modalità attiva */}

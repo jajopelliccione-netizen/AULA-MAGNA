@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { StaffGate } from '../../components/StaffGate'
+import { ScreenUpdateChip } from '../../components/UpdateBanner'
 import { ScreenStart } from '../../components/ScreenStart'
 import { useAppState, useGame, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { ensureInitialDocs } from '../../lib/actions'
@@ -37,14 +38,6 @@ function ScreenInner() {
   const outdated = useOutdated()
   useAutoApprove(state, allRequests, ready && !second)
 
-  // nuova versione del sito: ricarica da solo, ma solo quando non c'è un brano o una partita in corso
-  const idle = !state.nowPlaying && state.playerStatus !== 'between' && (state.mode !== 'impostor' || game.status === 'lobby' || game.status === 'reveal')
-  useEffect(() => {
-    if (outdated && idle) {
-      allowReload()
-      window.location.reload()
-    }
-  }, [outdated, idle])
 
   useEffect(() => {
     ensureInitialDocs().catch((e) => console.error('ensureInitialDocs', e))
@@ -64,6 +57,7 @@ function ScreenInner() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-ink relative">
       <KioskLayer kiosk={kiosk} />
+      {outdated && <ScreenUpdateChip onReload={() => { allowReload(); window.location.reload() }} />}
       {/* Con i comandi touch la schermata di gioco si rimpicciolisce per lasciare spazio alla barra in basso: nulla viene coperto */}
       <div className="absolute left-0 top-0 w-screen h-screen origin-top" style={{ transform: `scale(${scale})`, transition: 'transform .25s ease' }}>
       {/* Karaoke e musica restano montati per tenere vivo il player */}

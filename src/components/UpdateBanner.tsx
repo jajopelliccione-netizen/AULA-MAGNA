@@ -10,3 +10,15 @@ export function UpdateBanner() {
     </div>
   )
 }
+
+/**
+ * Sugli schermi (proiettore, gobbo) la pagina NON si ricarica mai da sola: un ricaricamento fa uscire dal tutto schermo
+ * e fa perdere l'audio sbloccato. Compare solo un piccolo tasto, da toccare quando si ha un momento.
+ */
+export function ScreenUpdateChip({ onReload }: { onReload: () => void }) {
+  return (
+    <button onClick={onReload} className="fixed bottom-[1.2vh] left-[1.2vw] z-[70] flex items-center gap-[.6vw] rounded-full bg-brand-deep/90 border border-white/25 px-[1.1vw] py-[.7vh] text-[1.1vw] font-semibold text-white shadow-xl">
+      <RefreshCw className="w-[1.2vw] h-[1.2vw]" /> Nuova versione · tocca per aggiornare
+    </button>
+  )
+}
