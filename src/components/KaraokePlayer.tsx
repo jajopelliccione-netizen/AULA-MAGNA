@@ -51,6 +51,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const loadAt = useRef(0)
   const loadCalledAt = useRef(0)
   const alignSeeks = useRef(0)
+  const lateSeeks = useRef(0)
   // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
   const aligned = useRef(false)
   const prog = useRef({ time: -1, at: 0, handledAt: 0 })
@@ -211,7 +212,8 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       driftSince.current = 0
       loadAt.current = Date.now()
       alignSeeks.current = 0
-      aligned.current = role !== 'follower' || IS_IOS
+      lateSeeks.current = 0
+      aligned.current = role !== 'follower'
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -344,12 +346,12 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
             p.setPlaybackQuality?.(bf.retries >= 2 ? 'small' : 'medium')
             setLowRes(true)
             loadAt.current = Date.now()
-            aligned.current = role !== 'follower' || IS_IOS
+            aligned.current = role !== 'follower'
           }
         } else bf.since = 0
         if (DEBUG) {
           const e2 = role === 'follower' ? expectedPos() : null
-          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'}`)
+          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'} avvio=${loadLag}ms salti=${alignSeeks.current}+${lateSeeks.current}`)
         }
       }
       // video che «carica e basta»: se il tempo non avanza da qualche secondo mentre dovrebbe suonare, il browser lo ha bloccato
@@ -419,7 +421,9 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       // dopo l'allineamento il video non si tocca più: salti solo per scarti grandi e duraturi (es. dopo un blocco della rete)
       if (ad > 1.2) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
       const dur = driftSince.current > 0 ? t - driftSince.current : 0
-      if ((ad > 3 && t - lastSeek.current > 3000) || (dur > 3000 && t - lastSeek.current > 10000)) {
+      // al massimo 2 salti correttivi per canzone: su un dispositivo lento ogni salto fa ricaricare il video e si finirebbe a scatti
+      if (lateSeeks.current < 2 && ((ad > 3 && t - lastSeek.current > 3000) || (dur > 3000 && t - lastSeek.current > 10000))) {
+        lateSeeks.current++
         driftSince.current = 0
         lastSeek.current = t
         seekAt.current = t
