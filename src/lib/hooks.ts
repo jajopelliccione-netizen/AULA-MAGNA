@@ -173,23 +173,26 @@ export function useServerClock(): () => number {
     let stop = false
     const ref = doc(db, 'presence', user.uid)
     const measure = async () => {
-      let best: { rtt: number; off: number } | null = null
-      for (let i = 0; i < 3 && !stop; i++) {
+      const samples: { rtt: number; off: number }[] = []
+      for (let i = 0; i < 8 && !stop; i++) {
         try {
           const t0 = Date.now()
           await setDoc(ref, { nickname: '_clock', nicknameKey: 'clock', lastSeen: serverTimestamp() })
           const snap = await getDocFromServer(ref)
           const t1 = Date.now()
           const srv = (snap.data()?.lastSeen as { toMillis: () => number } | undefined)?.toMillis()
-          if (srv) {
-            const cand = { rtt: t1 - t0, off: srv - (t0 + t1) / 2 }
-            if (!best || cand.rtt < best.rtt) best = cand
-          }
+          if (srv) samples.push({ rtt: t1 - t0, off: srv - (t0 + t1) / 2 })
         } catch (e) {
           console.warn('[clock]', e)
         }
+        await new Promise((r) => setTimeout(r, 150 + Math.random() * 250))
       }
-      if (best && !stop) offset.current = best.off
+      // si tengono i campioni più veloci (errore minore) e se ne prende la mediana: scarta anche le letture
+      // sporcate da un altro schermo che scrive lo stesso documento nello stesso istante
+      if (samples.length && !stop) {
+        const good = samples.sort((x, y) => x.rtt - y.rtt).slice(0, Math.max(3, Math.ceil(samples.length / 2))).map((x) => x.off).sort((x, y) => x - y)
+        offset.current = good[Math.floor(good.length / 2)]
+      }
     }
     measure()
     const t = setInterval(measure, 5 * 60_000)

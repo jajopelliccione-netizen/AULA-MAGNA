@@ -32,6 +32,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   const keepMuted = useRef(false)
   const attempting = useRef(false)
   const lastSeek = useRef(0)
+  const seekAt = useRef(0)
+  const lagMs = useRef(0)
+  const rate = useRef(1)
+  const pubTick = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
   const tapRef = useRef<'none' | 'unmute' | 'native'>('none')
@@ -75,7 +79,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
     const paused = stateRef.current.playerStatus === 'paused'
     const base = Math.round(nowRef.current() - pos * 1000)
     const last = lastPub.current
-    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 400)) return
+    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 120)) return
     lastPub.current = { queueId: np.queueId, base, paused }
     publishSync({ queueId: np.queueId, base, paused, pos }).catch(() => {})
   }
@@ -206,6 +210,11 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
           onStateChange: (e: any) => {
             const np = stateRef.current.nowPlaying
             if (!np || np.queueId !== loadedRef.current) return
+            if (e.data === YT.PlayerState.PLAYING && seekAt.current) {
+              const lag = Date.now() - seekAt.current
+              if (lag < 5000) lagMs.current = Math.min(1500, lagMs.current * 0.5 + lag * 0.5)
+              seekAt.current = 0
+            }
             if (e.data === YT.PlayerState.PLAYING && keepMuted.current && !(role === 'follower' && mutedRef.current)) tryUnmute()
             if (e.data === YT.PlayerState.ENDED && role === 'master') cbRef.current.onEnded?.(np.queueId)
             else if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) publish(e.data === YT.PlayerState.PAUSED)
@@ -263,18 +272,40 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
         if (st === 2 || st === 5 || st === -1) p.playVideo?.()
       }
       if (role === 'master') {
-        if (s.playerStatus === 'playing') publish()
+        pubTick.current = (pubTick.current + 1) % 5
+        if (s.playerStatus === 'playing' && pubTick.current === 0) publish()
         return
       }
       const exp = expectedPos()
       if (exp === null) return
       const cur = Number(p.getCurrentTime?.() ?? 0)
-      // niente seek a raffica: dopo un riallineamento si lascia al video il tempo di ripartire
-      if (Math.abs(cur - exp) > (s.sync?.paused ? 0.3 : 0.35) && Date.now() - lastSeek.current > 2500) {
-        lastSeek.current = Date.now()
-        p.seekTo?.(exp, true)
+      const drift = cur - exp // > 0: questo schermo è avanti
+      const ad = Math.abs(drift)
+      const paused = !!s.sync?.paused
+      if (paused) {
+        if (ad > 0.15 && Date.now() - lastSeek.current > 1000) { lastSeek.current = Date.now(); p.seekTo?.(exp, true) }
+        return
       }
-    }, 1000)
+      if (ad > 0.6 && Date.now() - lastSeek.current > 2000) {
+        // scarto grande: seek, anticipando il tempo che il video impiega a ripartire (imparato dai seek precedenti)
+        lastSeek.current = Date.now()
+        seekAt.current = Date.now()
+        rate.current = 1
+        p.setPlaybackRate?.(1)
+        p.seekTo?.(exp + lagMs.current / 1000, true)
+        return
+      }
+      // scarto piccolo: si recupera senza interruzioni accelerando o rallentando per pochi decimi di secondo
+      if (rate.current === 1) {
+        if (ad > 0.06 && ad <= 0.6) {
+          rate.current = drift > 0 ? 0.75 : 1.25
+          p.setPlaybackRate?.(rate.current)
+        }
+      } else if (ad < 0.025 || (rate.current === 0.75) !== (drift > 0)) {
+        rate.current = 1
+        p.setPlaybackRate?.(1)
+      }
+    }, 200)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role])
