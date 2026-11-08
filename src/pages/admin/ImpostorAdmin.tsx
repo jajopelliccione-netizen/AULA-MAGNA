@@ -6,6 +6,14 @@ import { expelPlayer, moveTurn, nextGiro, removeWord, resetLobby, resetWordHisto
 import { CATEGORIES, RANDOM_CATEGORY_ID, availability, type WordHistory } from '../../lib/words'
 import { useDoc } from '../../lib/hooks'
 
+const PHASES: { id: Game['status']; label: string }[] = [
+  { id: 'lobby', label: 'Lobby' },
+  { id: 'reading', label: 'Lettura' },
+  { id: 'turns', label: 'Giri' },
+  { id: 'voting', label: 'Voto' },
+  { id: 'reveal', label: 'Rivela' },
+]
+
 const STATUS_LABEL: Record<Game['status'], string> = {
   lobby: 'Lobby · i giocatori stanno entrando',
   reading: 'I giocatori leggono la parola',
@@ -100,6 +108,19 @@ export default function ImpostorAdmin({ game, players, serverNow, config, onConf
           <span className="chip border-brand/40 bg-brand/15 text-ice">{STATUS_LABEL[game.status]}</span>
         </div>
 
+        {/* dove siamo: Lobby → Lettura → Giri → Voto → Rivela */}
+        <ol className="grid grid-cols-5 gap-1.5" aria-label="Fasi della partita">
+          {PHASES.map((ph, i) => {
+            const cur = PHASES.findIndex((x) => x.id === game.status)
+            const state = i < cur ? 'done' : i === cur ? 'now' : 'todo'
+            return (
+              <li key={ph.id} className={`rounded-xl px-1 py-2 text-center text-[.68rem] sm:text-xs font-bold leading-tight border ${state === 'now' ? 'bg-brand/25 border-brand text-white' : state === 'done' ? 'bg-good/10 border-good/30 text-good' : 'bg-white/[.03] border-line text-muted'}`}>
+                {state === 'done' ? '✓ ' : ''}{ph.label}
+              </li>
+            )
+          })}
+        </ol>
+
         {/* ---------- impostazioni (tra una partita e l'altra) ---------- */}
         {canConfigure && (
           <>
@@ -167,13 +188,19 @@ export default function ImpostorAdmin({ game, players, serverNow, config, onConf
                 </>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button className="btn py-3.5" disabled={busy || game.turnIndex <= 0} onClick={() => run(() => act('è tornato al giocatore precedente', () => moveTurn(game, -1)))}><ChevronLeft className="w-5 h-5" /> Indietro</button>
-              <button className="btn btn-primary py-3.5" disabled={busy || finished} onClick={() => run(() => act(`ha chiamato il giocatore successivo`, () => moveTurn(game, 1)))}>Prossimo <ChevronRight className="w-5 h-5" /></button>
+            <div className="flex flex-col gap-1.5">
+              <div className="eyebrow text-[.68rem]">Turno</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn py-3.5" disabled={busy || game.turnIndex <= 0} onClick={() => run(() => act('è tornato al giocatore precedente', () => moveTurn(game, -1)))}><ChevronLeft className="w-5 h-5" /> Indietro</button>
+                <button className="btn btn-primary py-3.5" disabled={busy || finished} onClick={() => run(() => act(`ha chiamato il giocatore successivo`, () => moveTurn(game, 1)))}>Prossimo <ChevronRight className="w-5 h-5" /></button>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button className={`btn py-3.5 ${finished ? 'btn-success' : ''}`} disabled={busy} onClick={() => run(() => act(`ha avviato il giro ${game.giro + 1}`, () => nextGiro(game.giro)))}><RotateCw className="w-4 h-4" /> Altro giro</button>
-              <button className="btn btn-secondary py-3.5" disabled={busy} onClick={() => run(() => act('ha avviato il voto', startVoting))}><Vote className="w-4 h-4" /> Avvia voto</button>
+            <div className="flex flex-col gap-1.5">
+              <div className="eyebrow text-[.68rem]">Quando il giro è finito</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button className={`btn py-3.5 ${finished ? 'btn-success' : ''}`} disabled={busy} onClick={() => run(() => act(`ha avviato il giro ${game.giro + 1}`, () => nextGiro(game.giro)))}><RotateCw className="w-4 h-4" /> Altro giro</button>
+                <button className="btn btn-secondary py-3.5" disabled={busy} onClick={() => run(() => act('ha avviato il voto', startVoting))}><Vote className="w-4 h-4" /> Avvia voto</button>
+              </div>
             </div>
           </>
         )}
@@ -183,7 +210,10 @@ export default function ImpostorAdmin({ game, players, serverNow, config, onConf
           <button className="btn btn-primary py-3.5 text-base" disabled={busy} onClick={() => run(() => act('ha rivelato l’impostore', revealRound))}><Eye className="w-4 h-4" /> Rivela</button>
         )}
         {(game.status === 'turns' || game.status === 'reading') && (
-          <button className="btn btn-danger py-2.5 text-sm" disabled={busy} onClick={() => confirm('Rivelare subito impostore e parola?') && run(() => act('ha rivelato l’impostore', revealRound))}><Eye className="w-4 h-4" /> Rivela subito</button>
+          <div className="border-t border-line pt-3 mt-1 flex flex-col gap-1.5">
+            <div className="eyebrow text-[.68rem]">Emergenza</div>
+            <button className="btn btn-danger py-2.5 text-sm" disabled={busy} onClick={() => confirm('Rivelare subito impostore e parola?') && run(() => act('ha rivelato l’impostore', revealRound))}><Eye className="w-4 h-4" /> Rivela subito</button>
+          </div>
         )}
 
         {err && <p className="text-bad text-sm">{err}</p>}

@@ -27,29 +27,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export const useAuth = () => useContext(Ctx)
 
-/** Accesso anonimo automatico per i telefoni dei ragazzi (con ritentativi). */
+const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms)
+    p.then(
+      (v) => { clearTimeout(t); resolve(v) },
+      (e) => { clearTimeout(t); reject(e) },
+    )
+  })
+
+/**
+ * Accesso anonimo automatico per i telefoni dei ragazzi.
+ * Con una rete debole la richiesta può restare appesa: ogni tentativo ha un tempo massimo (8 s) e poi si riprova,
+ * anche subito quando torna la connessione o la pagina torna in primo piano.
+ */
 export function useAnonymousSignIn() {
   const { user, ready } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const [tries, setTries] = useState(0)
+
   useEffect(() => {
     if (!ready || user) return
     let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
     const go = async () => {
+      if (cancelled) return
+      clearTimeout(timer)
+      setTries((n) => n + 1)
       try {
-        await signInAnonymously(auth)
+        await withTimeout(signInAnonymously(auth), 8000)
         if (!cancelled) setError(null)
       } catch (e) {
         if (cancelled) return
         setError((e as Error).message)
         attempt++
-        setTimeout(go, Math.min(1000 * 2 ** attempt, 15000))
+        timer = setTimeout(go, Math.min(1000 * attempt, 4000))
       }
     }
+    const nudge = () => {
+      if (document.visibilityState === 'visible') go()
+    }
     go()
+    window.addEventListener('online', nudge)
+    document.addEventListener('visibilitychange', nudge)
     return () => {
       cancelled = true
+      clearTimeout(timer)
+      window.removeEventListener('online', nudge)
+      document.removeEventListener('visibilitychange', nudge)
     }
   }, [ready, user])
-  return { user, ready: ready && !!user, error }
+
+  return { user, ready: ready && !!user, error, tries }
 }

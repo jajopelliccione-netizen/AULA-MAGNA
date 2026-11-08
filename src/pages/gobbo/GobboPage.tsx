@@ -7,6 +7,8 @@ import { useAppState, useNow, useQueue, useServerClock } from '../../lib/hooks'
 import { CountdownRing } from '../screen/KaraokeStage'
 import { BRAND } from '../../lib/brand'
 import { useOutdated } from '../../lib/version'
+import { allowReload, limRequested, saveLim, useKioskLock } from '../../lib/kiosk'
+import { KioskLayer } from '../../components/KioskLayer'
 import { useEffect } from 'react'
 
 export default function GobboPage() {
@@ -20,14 +22,19 @@ export default function GobboPage() {
 /** Schermo per chi canta: solo il video con il testo, a tutto schermo, senza coda. */
 function GobboInner() {
   const [started, setStarted] = useState(false)
+  const [lim, setLim] = useState(limRequested)
   const { data: state, ready } = useAppState()
   const { queue } = useQueue('karaoke')
   const serverNow = useServerClock()
   const now = useNow(100)
+  const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
   const idle = !state.nowPlaying && state.playerStatus !== 'between'
   useEffect(() => {
-    if (outdated && idle) window.location.reload()
+    if (outdated && idle) {
+      allowReload()
+      window.location.reload()
+    }
   }, [outdated, idle])
 
   useEffect(() => {
@@ -35,7 +42,7 @@ function GobboInner() {
     return () => { document.body.style.cursor = '' }
   }, [started])
 
-  if (!started) return <ScreenStart label="Schermo gobbo · solo testo" hint="Mostra solo il video con il testo per chi canta" onStart={() => setStarted(true)} />
+  if (!started) return <ScreenStart label="Schermo gobbo · solo testo" hint="Mostra solo il video con il testo per chi canta" lim={lim} onLim={(v) => { setLim(v); saveLim(v) }} onStart={() => setStarted(true)} />
 
   const active = state.mode === 'karaoke'
   const np = state.nowPlaying
@@ -44,6 +51,7 @@ function GobboInner() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-black relative">
+      <KioskLayer kiosk={kiosk} />
       {ready && <KaraokePlayer state={state} active={active} role="follower" muted={!state.gobboAudio} serverNow={serverNow} />}
 
       {/* in attesa: prima/dopo le canzoni o con un'altra modalità attiva */}

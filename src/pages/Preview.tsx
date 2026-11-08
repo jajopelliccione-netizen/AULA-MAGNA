@@ -31,7 +31,7 @@ const clock = () => Date.now()
 export default function Preview() {
   const { name } = useParams()
   switch (name) {
-    case 'start': return <ScreenStart label="Schermo proiettore" hint="Il clic serve per attivare l'audio del browser" onStart={() => {}} />
+    case 'start': return <ScreenStart label="Schermo proiettore" hint="Il clic serve per attivare l'audio del browser" lim onLim={() => {}} onStart={() => {}} />
     case 'lobby': return <div className="h-screen"><LobbyScreen online={87} /></div>
     case 'pause': return <div className="h-screen"><PauseScreen message="Torniamo tra 10 minuti" /></div>
     case 'k-playing': return <div className="h-screen"><KaraokeStage kind="karaoke" active serverNow={clock} queue={queue.slice(1)} state={st({ playerStatus: 'playing', nowPlaying: { queueId: 'x', videoId: 'dQw4w9WgXcQ', title: 'Vasco Rossi - Albachiara (Karaoke Version)', nickname: 'Giulia', uid: 'u1', bookedAt: 1, startedAt: 1 } })} /></div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { signOut } from 'firebase/auth'
-import { Activity, Captions, Home, LogOut, Menu, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, Captions, ChevronDown, ExternalLink, Home, LockOpen, LogOut, Menu, Mic, Monitor, Music2, Pause, UserRound, VenetianMask, Wifi, WifiOff, X } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { StaffGate } from '../../components/StaffGate'
 import { UpdateBanner } from '../../components/UpdateBanner'
@@ -8,7 +8,7 @@ import { BrandTitle } from '../../components/Logo'
 import { useAppState, useBanned, useGame, useLive, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { useOutdated } from '../../lib/version'
 import { useAutoApprove } from '../../lib/autoApprove'
-import { ensureInitialDocs, logAction, setImpostorConfig, setPauseMessage, switchMode } from '../../lib/actions'
+import { ensureInitialDocs, logAction, requestKioskUnlock, setImpostorConfig, setPauseMessage, switchMode } from '../../lib/actions'
 import type { ImpostorConfig, LastAction, Mode } from '../../lib/types'
 import KaraokeAdmin from './KaraokeAdmin'
 import ImpostorAdmin from './ImpostorAdmin'
@@ -56,6 +56,7 @@ function AdminInner() {
   const [toast, setToast] = useState<LastAction | null>(null)
   const [showFeed, setShowFeed] = useState(false)
   const [menu, setMenu] = useState(false)
+  const [screensOpen, setScreensOpen] = useState(false)
   const lastSeen = useRef<string | null>(null)
   const nameRef = useRef(name)
   nameRef.current = name
@@ -125,16 +126,38 @@ function AdminInner() {
               </span>
               <span className="chip !px-2.5"><span className="dot-live" /> {count}<span className="hidden sm:inline"> online</span></span>
 
-              {/* da tablet in su: tutti i comandi in barra */}
+              {/* da tablet in su: Attività · Schermi · account */}
               <div className="hidden md:flex items-center gap-2">
-                <label className="chip !py-0.5" title="Il tuo nome: compare agli altri admin quando fai qualcosa">
-                  <UserRound className="w-3.5 h-3.5 text-ice" />
-                  <input className="bg-transparent outline-none w-24 text-xs font-semibold" value={name} maxLength={16} onChange={(e) => saveName(e.target.value)} aria-label="Il tuo nome" />
-                </label>
                 <button className={`btn text-sm py-2 px-3 ${showFeed ? 'btn-secondary' : ''}`} onClick={() => setShowFeed((v) => !v)}><Activity className="w-4 h-4" /> Attività</button>
-                <a href="/schermo" target="_blank" rel="noreferrer" className="btn text-sm py-2 px-3"><Monitor className="w-4 h-4" /> Proiettore</a>
-                <a href="/gobbo" target="_blank" rel="noreferrer" className="btn text-sm py-2 px-3"><Captions className="w-4 h-4" /> Gobbo</a>
-                <button className="btn text-sm py-2 px-3" onClick={() => signOut(auth)}><LogOut className="w-4 h-4" /> Esci</button>
+
+                <div className="relative">
+                  <button className={`btn text-sm py-2 px-3 ${screensOpen ? 'btn-secondary' : ''}`} onClick={() => setScreensOpen((v) => !v)} aria-expanded={screensOpen}>
+                    <Monitor className="w-4 h-4" /> Schermi <ChevronDown className={`w-4 h-4 transition ${screensOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {screensOpen && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setScreensOpen(false)} />
+                      <div className="absolute right-0 top-full mt-2 z-40 w-72 card-solid p-2 shadow-2xl anim-slide">
+                        <a href="/schermo" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[.07]" onClick={() => setScreensOpen(false)}>
+                          <Monitor className="w-5 h-5 text-ice" /><span className="flex-1"><span className="block font-semibold text-sm">Proiettore</span><span className="block text-xs text-muted">Video, coda e giochi</span></span><ExternalLink className="w-4 h-4 text-muted" />
+                        </a>
+                        <a href="/gobbo" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[.07]" onClick={() => setScreensOpen(false)}>
+                          <Captions className="w-5 h-5 text-ice" /><span className="flex-1"><span className="block font-semibold text-sm">Gobbo</span><span className="block text-xs text-muted">Solo il testo, per chi canta</span></span><ExternalLink className="w-4 h-4 text-muted" />
+                        </a>
+                        <div className="my-1.5 border-t border-line" />
+                        <button className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[.07] text-left" onClick={() => { setScreensOpen(false); act('ha sbloccato lo schermo LIM', () => requestKioskUnlock()) }}>
+                          <LockOpen className="w-5 h-5 text-warn" /><span className="flex-1"><span className="block font-semibold text-sm">Sblocca schermo LIM</span><span className="block text-xs text-muted">Fa uscire la LIM dal tutto schermo</span></span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 rounded-xl border border-line bg-white/[.04] pl-3 pr-1 py-1" title="Il tuo nome: compare agli altri admin quando fai qualcosa">
+                  <UserRound className="w-4 h-4 text-ice shrink-0" />
+                  <input className="bg-transparent outline-none w-24 text-sm font-semibold" value={name} maxLength={16} onChange={(e) => saveName(e.target.value)} aria-label="Il tuo nome" />
+                  <button className="btn btn-icon !p-2 !min-w-0 !min-h-0 !border-0 !bg-transparent" title="Esci" aria-label="Esci" onClick={() => signOut(auth)}><LogOut className="w-4 h-4" /></button>
+                </div>
               </div>
 
               {/* telefono: un solo pulsante menu */}
@@ -198,16 +221,22 @@ function AdminInner() {
                 )
               })}
             </div>
-            <div className="mt-3 sm:mt-4 flex gap-2">
-              <input
-                className="input"
-                placeholder="Messaggio per la pausa"
-                value={msg}
-                onChange={(e) => { setMsg(e.target.value); setMsgDirty(true) }}
-                maxLength={120}
-              />
-              <button className="btn btn-secondary shrink-0" onClick={() => act(`ha cambiato il messaggio di pausa: «${msg}»`, () => setPauseMessage(msg)).then(() => setMsgDirty(false))}>Salva</button>
-            </div>
+            {state.mode === 'pause' && (
+              <div className="mt-3 sm:mt-4 flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted" htmlFor="pause-msg">Messaggio mostrato sullo schermo in pausa</label>
+                <div className="flex gap-2">
+                  <input
+                    id="pause-msg"
+                    className="input"
+                    placeholder="Es. Torniamo tra 10 minuti"
+                    value={msg}
+                    onChange={(e) => { setMsg(e.target.value); setMsgDirty(true) }}
+                    maxLength={120}
+                  />
+                  <button className="btn btn-secondary shrink-0" onClick={() => act(`ha cambiato il messaggio di pausa: «${msg}»`, () => setPauseMessage(msg)).then(() => setMsgDirty(false))}>Salva</button>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* ---------- schede (da tablet in su; su telefono sono nella barra in basso) ---------- */}
@@ -259,6 +288,7 @@ function AdminInner() {
                 <a href="/schermo" target="_blank" rel="noreferrer" className="btn py-3.5"><Monitor className="w-5 h-5" /> Proiettore</a>
                 <a href="/gobbo" target="_blank" rel="noreferrer" className="btn py-3.5"><Captions className="w-5 h-5" /> Gobbo</a>
               </div>
+              <button className="btn py-3.5 justify-start" onClick={() => { setMenu(false); act('ha sbloccato lo schermo LIM', () => requestKioskUnlock()) }}><LockOpen className="w-5 h-5 text-warn" /> Sblocca schermo LIM</button>
               <button className="btn btn-danger py-3.5" onClick={() => signOut(auth)}><LogOut className="w-5 h-5" /> Esci</button>
             </div>
           </div>

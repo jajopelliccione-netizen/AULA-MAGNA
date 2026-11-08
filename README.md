@@ -148,6 +148,15 @@ Si azzerano a ogni «Nuova partita». Le regole Firestore permettono di scrivere
 - Durante il gioco (e con una richiesta di canzone in corso) lo **schermo resta acceso**: un telefono in stand-by riceve gli aggiornamenti in ritardo.
 - Se la connessione è assente da più di 4 secondi compare «Connessione instabile».
 
+## Modalità LIM (schermo bloccato)
+
+Per un proiettore su una **LIM touch** così nessuno può uscire dall'app e rovinare coda o gioco:
+1. Apri `/schermo` (o `/gobbo`) sulla LIM con l'indirizzo **`/schermo?lim=1`** (o spunta «Modalità LIM» nella schermata iniziale: la scelta resta salvata) e premi **Clicca per avviare**.
+2. Lo schermo va a tutto schermo e **non si esce toccando**: tasto indietro, F5, F11, Esc, Ctrl+R, menu del tocco lungo, zoom e gesti a due dita sono bloccati. Se qualcuno riesce comunque a uscire dal tutto schermo compare «Schermo bloccato» e un tocco lo ripristina.
+3. **Solo l'admin può sbloccare**: tenendo premuto 2,5 secondi l'angolo in alto a sinistra e inserendo la **password dell'account admin**, oppure da qualsiasi altro dispositivo con **Schermi → Sblocca schermo LIM** nel pannello admin. Dopo lo sblocco compare un piccolo «Blocca di nuovo».
+
+Limite: una pagina web non può bloccare il sistema operativo (chiudere il browser dalla barra della LIM, ecc.). Per un blocco totale usa anche il **chiosco del browser**, ad esempio su Windows: `chrome.exe --kiosk --app=https://aulamagna2026.pages.dev/schermo?lim=1` (la LIM va poi lasciata con l'account in modalità chiosco/accesso assegnato, così senza tastiera non si esce).
+
 ## Audio su iPad / iPhone
 
 Safari su iPad e iPhone blocca l'avvio automatico dei video con l'audio. Per il proiettore è meglio un **computer con Chrome** (dopo il clic su «Clicca per avviare» tutto parte da solo). Ogni canzone **parte subito, in muto** (l'avvio muto è permesso da tutti i browser) e l'app prova a riattivare l'audio: sul computer succede da solo; su iPad compare un grande pulsante **«Tocca per attivare l'audio»** e basta un tocco (spesso solo per la prima canzone). Su iOS inoltre il volume non si regola dal sito (si usano i tasti dell'iPad o l'impianto audio).

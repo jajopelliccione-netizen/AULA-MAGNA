@@ -108,6 +108,8 @@ export const setImpostorConfig = (config: ImpostorConfig) => patchState({ impost
 export const logAction = (by: string, text: string, at: number) => patchState({ lastAction: { by, text, at } })
 export const setGobboAudio = (gobboAudio: boolean) => patchState({ gobboAudio })
 export const publishSync = (sync: SyncInfo | null) => patchState({ sync })
+/** Sblocca da remoto lo schermo in modalità LIM (esce dal tutto schermo). */
+export const requestKioskUnlock = () => patchState({ kioskUnlock: increment(1) })
 export const requestSkip = () => patchState({ skipNonce: increment(1) })
 /** Fa ricominciare da 0:00 la canzone in corso (e la fa ripartire se era in pausa). */
 export const restartSong = () => patchState({ restartNonce: increment(1), playerStatus: 'playing', hold: false })

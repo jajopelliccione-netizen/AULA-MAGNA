@@ -1,11 +1,11 @@
-import { Play } from 'lucide-react'
+import { Lock, Play } from 'lucide-react'
 import { BRAND } from '../lib/brand'
 import { Logo } from './Logo'
 
 /** Schermata iniziale di /schermo e /gobbo: il clic sblocca l'audio del browser e attiva lo schermo intero. */
-export function ScreenStart({ label, hint, onStart }: { label: string; hint: string; onStart: () => void }) {
+export function ScreenStart({ label, hint, lim, onLim, onStart }: { label: string; hint: string; lim: boolean; onLim: (on: boolean) => void; onStart: () => void }) {
   return (
-    <div className="h-full bg-stage grid place-items-center">
+    <div className="h-full bg-stage flex flex-col items-center justify-center">
       <button
         onClick={() => {
           onStart()
@@ -24,6 +24,11 @@ export function ScreenStart({ label, hint, onStart }: { label: string; hint: str
         </span>
         <span className="text-[1.15vw] text-muted">{hint}</span>
       </button>
+      <label className="mt-[3vh] flex items-center gap-[1vw] text-[1.4vw] text-muted cursor-pointer select-none card px-[1.6vw] py-[1.2vh]">
+        <input type="checkbox" className="w-[1.6vw] h-[1.6vw] accent-[#2f93f0]" checked={lim} onChange={(e) => onLim(e.target.checked)} />
+        <Lock className="w-[1.6vw] h-[1.6vw] text-ice" />
+        <span><b className="text-white">Modalità LIM</b>: blocca l'uscita dal tutto schermo (si sblocca solo con la password admin)</span>
+      </label>
     </div>
   )
 }

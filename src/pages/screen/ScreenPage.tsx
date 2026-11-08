@@ -5,6 +5,8 @@ import { useAppState, useGame, usePlayers, usePresence, useQueue, useServerClock
 import { ensureInitialDocs } from '../../lib/actions'
 import { useOutdated } from '../../lib/version'
 import { useAutoApprove } from '../../lib/autoApprove'
+import { allowReload, limRequested, saveLim, useKioskLock } from '../../lib/kiosk'
+import { KioskLayer } from '../../components/KioskLayer'
 import KaraokeStage from './KaraokeStage'
 import ImpostorScreen from './ImpostorScreen'
 import { LobbyScreen, PauseScreen } from './LobbyScreen'
@@ -19,6 +21,7 @@ export default function ScreenPage() {
 
 function ScreenInner() {
   const [started, setStarted] = useState(false)
+  const [lim, setLim] = useState(limRequested)
   const { data: state, ready } = useAppState()
   const kind = state.mode === 'music' ? 'music' : 'karaoke'
   const { queue, all: allRequests } = useQueue(kind)
@@ -26,13 +29,17 @@ function ScreenInner() {
   const { players } = usePlayers(state.mode === 'impostor')
   const { count } = usePresence()
   const serverNow = useServerClock()
+  const kiosk = useKioskLock(lim, started, state.kioskUnlock)
   const outdated = useOutdated()
   useAutoApprove(state, allRequests, ready)
 
   // nuova versione del sito: ricarica da solo, ma solo quando non c'è un brano o una partita in corso
   const idle = !state.nowPlaying && state.playerStatus !== 'between' && (state.mode !== 'impostor' || game.status === 'lobby' || game.status === 'reveal')
   useEffect(() => {
-    if (outdated && idle) window.location.reload()
+    if (outdated && idle) {
+      allowReload()
+      window.location.reload()
+    }
   }, [outdated, idle])
 
   useEffect(() => {
@@ -44,11 +51,12 @@ function ScreenInner() {
     return () => { document.body.style.cursor = '' }
   }, [started])
 
-  if (!started) return <ScreenStart label="Schermo proiettore" hint="Il clic serve per attivare l'audio del browser" onStart={() => setStarted(true)} />
+  if (!started) return <ScreenStart label="Schermo proiettore" hint="Il clic serve per attivare l'audio del browser" lim={lim} onLim={(v) => { setLim(v); saveLim(v) }} onStart={() => setStarted(true)} />
   if (!ready) return <div className="h-full bg-stage grid place-items-center eyebrow text-[2vw]">Mi collego…</div>
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-ink relative">
+      <KioskLayer kiosk={kiosk} />
       {/* Karaoke e musica restano montati per tenere vivo il player */}
       <KaraokeStage state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
       {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} /></div>}

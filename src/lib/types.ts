@@ -54,6 +54,8 @@ export interface AppState {
   volume: number
   betweenEndsAt: number | null
   skipNonce: number
+  /** incrementato dall'admin per sbloccare da remoto uno schermo in modalità LIM */
+  kioskUnlock?: number
   /** incrementato dall'admin per far ricominciare da capo la canzone in corso */
   restartNonce: number
   gobboAudio: boolean

@@ -25,7 +25,7 @@ function loadNick(): string {
 }
 
 export default function PhonePage() {
-  const { user, ready, error } = useAnonymousSignIn()
+  const { user, ready, error, tries } = useAnonymousSignIn()
   const [nick, setNick] = useState(loadNick)
   const uid = user?.uid ?? null
 
@@ -80,7 +80,7 @@ export default function PhonePage() {
       }}
     >
       {!ready || !uid ? (
-        <Center>Mi collego…</Center>
+        <Connecting tries={tries} error={error} />
       ) : state.mode === 'karaoke' || state.mode === 'music' ? (
         <SongView key={state.mode} uid={uid} nick={nick} state={state} kind={state.mode} />
       ) : state.mode === 'impostor' ? (
@@ -120,6 +120,27 @@ function Shell({ children, nick, onChangeNick, showUpdate = false }: { children:
   )
 }
 
+/** Schermata «Mi collego…»: dopo qualche secondo compaiono i pulsanti per riprovare. */
+function Connecting({ tries, error }: { tries: number; error: string | null }) {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 7000)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <Center>
+      <div className="w-10 h-10 rounded-full border-4 border-white/15 border-t-brand animate-spin mb-4" />
+      <p className="display text-white text-3xl">Mi collego…</p>
+      {slow && (
+        <>
+          <p className="text-muted text-sm mt-3 max-w-xs">{error ? 'La connessione è lenta o instabile. Sto riprovando da solo.' : 'Ci sta mettendo più del solito.'} (tentativo {tries})</p>
+          <button className="btn btn-primary mt-4" onClick={() => window.location.reload()}>Ricarica la pagina</button>
+        </>
+      )}
+    </Center>
+  )
+}
+
 function Center({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 grid place-content-center justify-items-center text-center p-6">{children}</div>
 }
@@ -136,10 +157,17 @@ function NickForm({ ready, error, onDone }: { ready: boolean; error: string | nu
     if (problem) return setErr(problem)
     setBusy(true)
     try {
-      const snap = await getDoc(doc(db, 'banned', nicknameKey(nick)))
-      if (snap.exists()) return setErr('Questo nickname è stato bloccato')
+      // il controllo "nickname bloccato" ha un tempo massimo: con la rete lenta non deve bloccare l'ingresso
+      // (il blocco vero è comunque applicato dopo, appena l'accesso è pronto, e dalle regole)
+      if (ready) {
+        const snap = await Promise.race([
+          getDoc(doc(db, 'banned', nicknameKey(nick))),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+        ])
+        if (snap && snap.exists()) return setErr('Questo nickname è stato bloccato')
+      }
     } catch {
-      /* se la lettura fallisce lasciamo passare: le rules bloccano comunque */
+      /* se la lettura fallisce lasciamo passare */
     } finally {
       setBusy(false)
     }
@@ -174,9 +202,9 @@ function NickForm({ ready, error, onDone }: { ready: boolean; error: string | nu
             onChange={(e) => { setValue(e.target.value); setErr('') }}
           />
           {err && <p className="text-bad text-sm -mt-2">{err}</p>}
-          {error && <p className="text-warn text-xs -mt-2">Connessione in corso… riprovo</p>}
-          <button className="btn btn-primary text-base py-3.5" disabled={!ready || busy}>
-            {ready ? <>Entra <ArrowRight className="w-5 h-5" /></> : 'Mi collego…'}
+          {!ready && <p className="text-muted text-xs -mt-2">{error ? 'Connessione lenta… riprovo in automatico.' : 'Mi sto collegando…'} Puoi già scrivere il nome.</p>}
+          <button className="btn btn-primary text-base py-3.5" disabled={busy}>
+            {busy ? 'Un attimo…' : <>Entra <ArrowRight className="w-5 h-5" /></>}
           </button>
         </form>
         <p className="text-xs text-muted text-center flex items-center gap-1.5"><Mic className="w-3.5 h-3.5" /> Karaoke <span className="opacity-40">•</span> <Gamepad2 className="w-3.5 h-3.5" /> Gioco dell’impostore</p>

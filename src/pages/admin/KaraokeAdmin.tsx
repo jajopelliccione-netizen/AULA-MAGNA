@@ -48,10 +48,12 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
     <div className="flex flex-col gap-4 sm:gap-5 lg:grid lg:grid-cols-5 lg:items-start">
       <NowBar kind={kind} state={state} np={np} head={head} act={act} />
 
-      {/* ---------- colonna sinistra: palco e controlli (su telefono i blocchi si riordinano con "order") ---------- */}
+      {/* ============ colonna sinistra: cosa sta suonando e come controllarlo ============ */}
       <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-2">
         <section className="order-2 lg:order-none card p-4 sm:p-5 flex flex-col gap-4">
-          <h2 className="eyebrow text-xs">{L.stage}</h2>
+          <h2 className="display text-white text-2xl">{L.stage}</h2>
+
+          {/* 1) cosa c'è / cosa viene dopo */}
           {np ? (
             <div className="flex gap-3 items-center">
               <img src={thumbUrl(np.videoId)} alt="" className="w-28 aspect-video object-cover rounded-xl bg-surface-2" />
@@ -83,22 +85,23 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
             <p className="text-warn text-sm rounded-xl bg-warn/10 border border-warn/30 px-3 py-2">Questa canzone era rimasta in pausa: premi Riprendi quando vuoi farla ripartire.</p>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          {/* 2) comandi del brano: una sola fila di tre pulsanti uguali */}
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Comandi del brano">
+            <button className="btn flex-col !gap-1 py-3 text-xs" disabled={!np} onClick={() => act('ha fatto ricominciare la canzone da capo', () => restartSong())}>
+              <RotateCcw className="w-5 h-5" /> Da capo
+            </button>
             {state.playerStatus === 'paused' ? (
-              <button className="btn btn-success py-3" disabled={!np} onClick={() => act('ha ripreso il video', () => setPlayerStatus('playing'))}><Play className="w-4 h-4" fill="currentColor" /> Riprendi</button>
+              <button className="btn btn-success flex-col !gap-1 py-3 text-xs" disabled={!np} onClick={() => act('ha ripreso il video', () => setPlayerStatus('playing'))}><Play className="w-5 h-5" fill="currentColor" /> Riprendi</button>
             ) : (
-              <button className="btn btn-secondary py-3" disabled={!np} onClick={() => act('ha messo in pausa il video', () => setPlayerStatus('paused'))}><Pause className="w-4 h-4" fill="currentColor" /> Pausa</button>
+              <button className="btn btn-secondary flex-col !gap-1 py-3 text-xs" disabled={!np} onClick={() => act('ha messo in pausa il video', () => setPlayerStatus('paused'))}><Pause className="w-5 h-5" fill="currentColor" /> Pausa</button>
             )}
-            <button className="btn btn-danger py-3" disabled={!np && state.playerStatus !== 'between'} onClick={() => act('ha saltato la canzone', () => requestSkip())}><SkipForward className="w-4 h-4" fill="currentColor" /> Salta</button>
+            <button className="btn btn-danger flex-col !gap-1 py-3 text-xs" disabled={!np && state.playerStatus !== 'between'} onClick={() => act('ha saltato la canzone', () => requestSkip())}><SkipForward className="w-5 h-5" fill="currentColor" /> Salta</button>
           </div>
 
-          <button className="btn py-3" disabled={!np} onClick={() => act('ha fatto ricominciare la canzone da capo', () => restartSong())}>
-            <RotateCcw className="w-4 h-4" /> Ricomincia da capo
-          </button>
-
-          <label className="flex items-center gap-3">
+          {/* 3) volume */}
+          <label className="flex items-center gap-3 rounded-xl bg-white/[.04] border border-line px-3.5 py-2.5">
             <Volume2 className="w-5 h-5 text-ice shrink-0" />
-            <input type="range" min={0} max={100} value={vol} onChange={(e) => changeVol(Number(e.target.value))} className="flex-1 accent-[#2f93f0]" />
+            <input type="range" min={0} max={100} value={vol} onChange={(e) => changeVol(Number(e.target.value))} className="flex-1 accent-[#2f93f0]" aria-label="Volume" />
             <span className="w-9 text-right font-bold tabular-nums">{vol}</span>
           </label>
 
@@ -107,42 +110,10 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
           )}
         </section>
 
-        <section className="order-6 lg:order-none card p-4 sm:p-5 flex flex-col gap-1">
-          <h2 className="eyebrow text-xs mb-2">Impostazioni</h2>
-          <Switch
-            on={state.bookingsOpen}
-            onChange={(v) => act(v ? 'ha aperto le richieste' : 'ha chiuso le richieste', () => setBookingsOpen(v))}
-            icon={state.bookingsOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-            title="Richieste aperte"
-            hint={state.bookingsOpen ? 'I ragazzi possono proporre canzoni' : 'Richieste bloccate'}
-          />
-          <Switch
-            on={!!state.autoApprove?.[kind]}
-            onChange={(v) => act(v ? `ha attivato l’approvazione automatica (${L.mode})` : `ha spento l’approvazione automatica (${L.mode})`, () => setAutoApprove(kind, v))}
-            icon={<Check className="w-5 h-5" />}
-            title="Approvazione automatica"
-            hint={state.autoApprove?.[kind] ? 'Le richieste entrano subito in coda (puoi sempre toglierle)' : 'Ogni richiesta aspetta il tuo OK'}
-          />
-          <Switch
-            on={state.playback === 'auto'}
-            onChange={(v) => act(v ? 'ha attivato la riproduzione automatica' : 'ha attivato la riproduzione manuale', () => setPlayback(v ? 'auto' : 'manual'))}
-            icon={<PlayCircle className="w-5 h-5" />}
-            title="Riproduzione automatica"
-            hint={state.playback === 'auto' ? 'Dopo il primo avvio le canzoni partono da sole' : 'Manuale: ogni canzone parte solo quando premi Avvia'}
-          />
-          {kind === 'karaoke' && <Switch
-            on={state.gobboAudio}
-            onChange={(v) => act(v ? 'ha attivato l’audio sul gobbo' : 'ha spento l’audio sul gobbo', () => setGobboAudio(v))}
-            icon={<Captions className="w-5 h-5" />}
-            title="Audio anche sul gobbo"
-            hint="Di norma l’audio esce solo dallo schermo del proiettore"
-          />}
-        </section>
-
         <AddSong kind={kind} className="order-4 lg:order-none" />
       </div>
 
-      {/* ---------- colonna destra: coda e ban ---------- */}
+      {/* ============ colonna destra: richieste e coda ============ */}
       <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-3">
         <Requests pending={pending} serverNow={serverNow} auto={!!state.autoApprove?.[kind]} className="order-1 lg:order-none" />
 
@@ -162,16 +133,67 @@ export default function KaraokeAdmin({ state, queue, pending, presence, banned, 
             </SortableContext>
           </DndContext>
         </section>
-
-        <BanBox presence={presence} queue={queue} banned={banned} className="order-7 lg:order-none" />
       </div>
+
+      {/* ============ riga in basso: impostazioni e moderazione ============ */}
+      <div className="order-5 lg:order-none lg:col-span-5 grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
+        <section className="card p-4 sm:p-5">
+          <h2 className="display text-white text-2xl mb-2">Impostazioni</h2>
+          <Group title="Richieste dei ragazzi">
+            <Switch
+              on={state.bookingsOpen}
+              onChange={(v) => act(v ? 'ha aperto le richieste' : 'ha chiuso le richieste', () => setBookingsOpen(v))}
+              icon={state.bookingsOpen ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+              title="Richieste aperte"
+              hint={state.bookingsOpen ? 'I ragazzi possono proporre canzoni' : 'Richieste bloccate'}
+            />
+            <Switch
+              on={!!state.autoApprove?.[kind]}
+              onChange={(v) => act(v ? `ha attivato l’approvazione automatica (${L.mode})` : `ha spento l’approvazione automatica (${L.mode})`, () => setAutoApprove(kind, v))}
+              icon={<Check className="w-5 h-5" />}
+              title="Approvazione automatica"
+              hint={state.autoApprove?.[kind] ? 'Le richieste entrano subito in coda (puoi sempre toglierle)' : 'Ogni richiesta aspetta il tuo OK'}
+            />
+          </Group>
+          <Group title="Riproduzione" last>
+            <Switch
+              on={state.playback === 'auto'}
+              onChange={(v) => act(v ? 'ha attivato la riproduzione automatica' : 'ha attivato la riproduzione manuale', () => setPlayback(v ? 'auto' : 'manual'))}
+              icon={<PlayCircle className="w-5 h-5" />}
+              title="Riproduzione automatica"
+              hint={state.playback === 'auto' ? 'Dopo il primo avvio le canzoni partono da sole' : 'Manuale: ogni canzone parte solo quando premi Avvia'}
+            />
+            {kind === 'karaoke' && (
+              <Switch
+                on={state.gobboAudio}
+                onChange={(v) => act(v ? 'ha attivato l’audio sul gobbo' : 'ha spento l’audio sul gobbo', () => setGobboAudio(v))}
+                icon={<Captions className="w-5 h-5" />}
+                title="Audio anche sul gobbo"
+                hint="Di norma l’audio esce solo dallo schermo del proiettore"
+              />
+            )}
+          </Group>
+        </section>
+
+        <BanBox presence={presence} queue={queue} banned={banned} />
+      </div>
+    </div>
+  )
+}
+
+/** Gruppo di impostazioni con un titoletto. */
+function Group({ title, children, last = false }: { title: string; children: ReactNode; last?: boolean }) {
+  return (
+    <div className={`${last ? '' : 'border-b border-line pb-2 mb-2'}`}>
+      <div className="eyebrow text-[.68rem] px-2 pt-2 pb-1">{title}</div>
+      {children}
     </div>
   )
 }
 
 function Switch({ on, onChange, icon, title, hint }: { on: boolean; onChange: (v: boolean) => void; icon: ReactNode; title: string; hint: string }) {
   return (
-    <button onClick={() => onChange(!on)} className="flex items-center gap-3 text-left rounded-xl px-2 py-2.5 hover:bg-white/[.05] transition" role="switch" aria-checked={on}>
+    <button onClick={() => onChange(!on)} className="w-full flex items-center gap-3 text-left rounded-xl px-2 py-2.5 hover:bg-white/[.05] transition" role="switch" aria-checked={on}>
       <span className={`grid place-items-center w-10 h-10 rounded-xl ${on ? 'bg-brand/20 text-ice' : 'bg-white/[.06] text-muted'}`}>{icon}</span>
       <span className="flex-1 min-w-0">
         <span className="block font-semibold text-sm">{title}</span>
@@ -284,8 +306,8 @@ function AddSong({ kind, className = '' }: { kind: Kind; className?: string }) {
 
   return (
     <section className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
-      <h2 className="eyebrow text-xs">Aggiungi una canzone (va in coda)</h2>
-      <p className="text-xs text-muted -mt-1.5">Le tue canzoni stanno sempre <b className="text-white/80">dopo quelle dei ragazzi</b>: chi prenota dal QR passa davanti.</p>
+      <h2 className="display text-white text-2xl">Aggiungi una canzone</h2>
+      <p className="text-xs text-muted -mt-2">Le tue canzoni stanno sempre <b className="text-white/80">dopo quelle dei ragazzi</b>: chi prenota dal QR passa davanti.</p>
 
       <form onSubmit={search} className="flex gap-2">
         <div className="relative flex-1">
@@ -345,7 +367,8 @@ function BanBox({ presence, queue, banned, className = '' }: { presence: Presenc
   const deviceBans = banned.filter((b) => b.uid)
   return (
     <section className={`card p-4 sm:p-5 flex flex-col gap-3 ${className}`}>
-      <h2 className="eyebrow text-xs">Nickname bannati</h2>
+      <h2 className="display text-white text-2xl">Moderazione</h2>
+      <p className="text-xs text-muted -mt-2">Nickname bannati: non possono più prenotare né giocare.</p>
       <form
         className="flex gap-2"
         onSubmit={(e) => {
