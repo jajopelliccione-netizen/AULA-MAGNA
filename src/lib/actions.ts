@@ -104,6 +104,7 @@ export const setBookingsOpen = (bookingsOpen: boolean) => patchState({ bookingsO
 /** Riprendi (e sblocca la coda) / metti in pausa. */
 export const setPlayerStatus = (playerStatus: 'playing' | 'paused') => patchState(playerStatus === 'playing' ? { playerStatus, hold: false } : { playerStatus })
 /** Accende/spegne i comandi touch sullo schermo del proiettore (LIM). */
+export const setVenueName = (venueName: string) => patchState({ venueName: venueName.trim().slice(0, 40) })
 export const setScreenControls = (screenControls: boolean) => patchState({ screenControls })
 export const setPlayback = (playback: Playback) => patchState({ playback })
 export const setImpostorConfig = (config: ImpostorConfig) => patchState({ impostorConfig: config })

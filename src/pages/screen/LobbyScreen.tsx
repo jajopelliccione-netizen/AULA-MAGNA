@@ -3,14 +3,14 @@ import { BRAND } from '../../lib/brand'
 import { Logo } from '../../components/Logo'
 import { QRCard } from './QR'
 
-export function LobbyScreen({ online }: { online: number }) {
+export function LobbyScreen({ online, venue }: { online: number; venue?: string }) {
   const qr = Math.round(Math.min(window.innerHeight * 0.52, window.innerWidth * 0.27))
   return (
     <div className="h-full w-full bg-stage flex items-center justify-between px-[6vw]">
       <div className={`flex flex-col gap-[3.2vh] max-w-[52vw]`}>
         <Logo size={Math.round(window.innerHeight * 0.2)} className="anim-floaty" />
         <div>
-          <div className="eyebrow text-[2.2vw]">Aula Magna</div>
+          {venue && <div className="eyebrow text-[2.2vw]">{venue}</div>}
           <h1 className={`display grad-text text-[10vw] mt-[1vh]`}>{BRAND.title}</h1>
           <div className={`display text-white text-[3.6vw] mt-[1.5vh]`}>{BRAND.school} <span className="text-brand">·</span> {BRAND.city}</div>
         </div>

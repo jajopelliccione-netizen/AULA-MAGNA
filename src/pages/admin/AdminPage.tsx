@@ -8,7 +8,7 @@ import { BrandTitle } from '../../components/Logo'
 import { useAppState, useBanned, useGame, useLive, usePlayers, usePresence, useQueue, useServerClock } from '../../lib/hooks'
 import { useOutdated } from '../../lib/version'
 import { useAutoApprove } from '../../lib/autoApprove'
-import { ensureInitialDocs, logAction, requestKioskUnlock, setImpostorConfig, setPauseMessage, setScreenControls, switchMode } from '../../lib/actions'
+import { ensureInitialDocs, logAction, requestKioskUnlock, setImpostorConfig, setPauseMessage, setScreenControls, setVenueName, switchMode } from '../../lib/actions'
 import type { ImpostorConfig, LastAction, Mode } from '../../lib/types'
 import KaraokeAdmin, { Switch } from './KaraokeAdmin'
 import ImpostorAdmin from './ImpostorAdmin'
@@ -231,6 +231,8 @@ function AdminInner() {
               />
             </div>
 
+            <VenueField value={state.venueName ?? ''} onSave={(v) => act(v ? `ha scritto «${v}» come nome del luogo su tutti gli schermi` : 'ha tolto il nome del luogo dagli schermi', () => setVenueName(v))} />
+
             {state.mode === 'pause' && (
               <div className="mt-3 sm:mt-4 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-muted" htmlFor="pause-msg">Messaggio mostrato sullo schermo in pausa</label>
@@ -313,5 +315,21 @@ function AdminInner() {
         {outdated && <UpdateBanner />}
       </div>
     </ActCtx.Provider>
+  )
+}
+
+/** Nome del luogo che compare su proiettore, gobbo e telefoni (al posto di un nome fisso). */
+function VenueField({ value, onSave }: { value: string; onSave: (v: string) => unknown }) {
+  const [v, setV] = useState(value)
+  const [dirty, setDirty] = useState(false)
+  useEffect(() => { if (!dirty) setV(value) }, [value, dirty])
+  return (
+    <div className="mt-3 sm:mt-4 flex flex-col gap-1.5">
+      <label className="text-xs font-semibold text-muted" htmlFor="venue-name">Nome del luogo mostrato su tutti gli schermi e sui telefoni</label>
+      <div className="flex gap-2">
+        <input id="venue-name" className="input" placeholder="Es. Palestra, Aula 12… (vuoto = non scrivere niente)" value={v} maxLength={40} onChange={(e) => { setV(e.target.value); setDirty(true) }} />
+        <button className="btn btn-secondary shrink-0" onClick={() => { Promise.resolve(onSave(v)).then(() => setDirty(false)) }}>Salva</button>
+      </div>
+    </div>
   )
 }

@@ -68,7 +68,7 @@ function ScreenInner() {
       <div className="absolute left-0 top-0 w-screen h-screen origin-top" style={{ transform: `scale(${scale})`, transition: 'transform .25s ease' }}>
       {/* Karaoke e musica restano montati per tenere vivo il player */}
       <KaraokeStage follower={second} state={state} queue={queue} active={state.mode === 'karaoke' || state.mode === 'music'} kind={kind} serverNow={serverNow} />
-      {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} /></div>}
+      {state.mode === 'lobby' && <div className="absolute inset-0"><LobbyScreen online={count} venue={state.venueName} /></div>}
       {state.mode === 'pause' && <div className="absolute inset-0"><PauseScreen message={state.message} /></div>}
       {state.mode === 'impostor' && <div className="absolute inset-0"><ImpostorScreen game={game} players={players} serverNow={serverNow} /></div>}
       </div>
