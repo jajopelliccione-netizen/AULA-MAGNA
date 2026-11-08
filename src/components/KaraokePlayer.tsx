@@ -13,8 +13,6 @@ const IS_IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navi
 const LOWRES_URL = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('leggero')
 const LW = 854
 const LH = 480
-// Quanto ci mette in media questo dispositivo ad avviare un video (ms): chi entra a canzone in corso parte avanti di altrettanto
-let loadLag = 1000
 const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')
 
 interface Props {
@@ -51,11 +49,6 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   const lagMs = useRef(0)
   const driftSince = useRef(0)
   const loadAt = useRef(0)
-  const loadCalledAt = useRef(0)
-  const alignSeeks = useRef(0)
-  const lateSeeks = useRef(0)
-  const restartAt = useRef(0)
-  const restartSeeks = useRef(0)
   // secondo schermo: resta muto finché non è allineato, così gli aggiustamenti iniziali non si sentono
   const aligned = useRef(false)
   const prog = useRef({ time: -1, at: 0, handledAt: 0 })
@@ -72,6 +65,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
   const stateRef = useRef(state)
   const activeRef = useRef(active)
   const mutedRef = useRef(muted)
+  const restartAt = useRef(0)
   const nowRef = useRef(serverNow)
   const offsetRef = useRef(offsetMs)
   offsetRef.current = offsetMs
@@ -110,7 +104,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
     const paused = stateRef.current.playerStatus === 'paused'
     const base = Math.round(nowRef.current() - pos * 1000)
     const last = lastPub.current
-    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 150)) return
+    if (!force && last && last.queueId === np.queueId && last.paused === paused && (paused || Math.abs(base - last.base) < 120)) return
     lastPub.current = { queueId: np.queueId, base, paused }
     publishSync({ queueId: np.queueId, base, paused, pos }).catch(() => {})
   }
@@ -208,19 +202,14 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
         p.mute?.()
       }
       attempting.current = false
-      // chi entra a canzone in corso parte già avanti del tempo che il video impiegherà ad avviarsi
-      const startAt = start !== null && start > 1 ? start + loadLag / 1000 : null
-      loadCalledAt.current = Date.now()
-      p.loadVideoById(startAt ? { videoId: np.videoId, startSeconds: startAt } : np.videoId)
+      p.loadVideoById(start && start > 2 ? { videoId: np.videoId, startSeconds: start } : np.videoId)
       loadedRef.current = np.queueId
       lastPub.current = null
       seekAt.current = 0
       seekBuffered.current = false
       driftSince.current = 0
       loadAt.current = Date.now()
-      alignSeeks.current = 0
-      lateSeeks.current = 0
-      aligned.current = role !== 'follower'
+      aligned.current = role !== 'follower' || IS_IOS
       setTap('none')
     }
     if (!activeRef.current || s.playerStatus === 'paused') {
@@ -245,7 +234,7 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
       lastSeek.current = Date.now()
       seekAt.current = Date.now()
       seekBuffered.current = false
-      p.seekTo?.(e + (lagMs.current || 300) / 1000, true)
+      p.seekTo?.(e + lagMs.current / 1000, true)
     }, 1000)
     return () => clearTimeout(tm)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -284,11 +273,6 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
           onStateChange: (e: any) => {
             const np = stateRef.current.nowPlaying
             if (!np || np.queueId !== loadedRef.current) return
-            if (e.data === YT.PlayerState.PLAYING && loadCalledAt.current) {
-              const l = Date.now() - loadCalledAt.current
-              if (l > 150 && l < 6000) loadLag = Math.round(loadLag * 0.5 + l * 0.5)
-              loadCalledAt.current = 0
-            }
             if (e.data === YT.PlayerState.BUFFERING && seekAt.current) seekBuffered.current = true
             if (e.data === YT.PlayerState.PLAYING && seekAt.current) {
               // il ritardo si impara solo se dopo il seek il video ha davvero caricato; altrimenti il seek è stato immediato
@@ -328,12 +312,10 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
     if (state.restartNonce === restartRef.current) return
     restartRef.current = state.restartNonce
     if (role !== 'master') {
-      // «Da capo»: anche i secondi schermi devono ripartire subito dall'inizio, senza i limiti sui salti correttivi
+      // «Da capo»: i secondi schermi seguono subito il principale
       restartAt.current = Date.now()
-      restartSeeks.current = 0
-      lateSeeks.current = 0
-      driftSince.current = 0
       lastSeek.current = 0
+      driftSince.current = 0
       return
     }
     const p = playerRef.current
@@ -380,12 +362,12 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
             p.setPlaybackQuality?.(bf.retries >= 2 ? 'small' : 'medium')
             setLowRes(true)
             loadAt.current = Date.now()
-            aligned.current = role !== 'follower'
+            aligned.current = role !== 'follower' || IS_IOS
           }
         } else bf.since = 0
         if (DEBUG) {
           const e2 = role === 'follower' ? expectedPos() : null
-          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'} anticipo=${offsetRef.current}ms avvio=${loadLag}ms salti=${alignSeeks.current}+${lateSeeks.current}`)
+          setDiag(`${role} stato=${st3} t=${Number(p.getCurrentTime?.() ?? 0).toFixed(1)} atteso=${e2 === null ? '-' : e2.toFixed(1)} muto=${p.isMuted?.() ? 'sì' : 'no'} anticipo=${offsetRef.current}ms allineato=${aligned.current ? 'sì' : 'no'} riprove=${bf.retries} ios=${IS_IOS ? 'sì' : 'no'} leggero=${lowRes ? 'sì' : 'no'}`)
         }
       }
       // video che «carica e basta»: se il tempo non avanza da qualche secondo mentre dovrebbe suonare, il browser lo ha bloccato
@@ -406,14 +388,14 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
         return
       }
       // rete di sicurezza: l'audio del secondo schermo si accende comunque entro pochi secondi dall'avvio, qualunque cosa succeda
-      if (!aligned.current && Date.now() - loadAt.current > 8500) {
+      if (!aligned.current && Date.now() - loadAt.current > 5000) {
         aligned.current = true
         if (keepMuted.current && !mutedRef.current) tryUnmute()
       }
       const exp = expectedPos()
       if (exp === null) {
         // il principale non ha (ancora) pubblicato la posizione: dopo qualche secondo si accende comunque l'audio
-        if (!aligned.current && Date.now() - loadAt.current > 10000) {
+        if (!aligned.current && Date.now() - loadAt.current > 9000) {
           aligned.current = true
           if (keepMuted.current && !mutedRef.current) tryUnmute()
         }
@@ -432,46 +414,41 @@ export default function KaraokePlayer({ state, active, role, muted = false, offs
       }
       // mai toccare il video mentre sta caricando (altrimenti il «caricamento» non finisce più) né subito dopo un salto o un avvio
       if (st !== 1) { driftSince.current = 0; return }
-      if (t - lastSeek.current < 2000 || t - loadAt.current < 2500) { driftSince.current = 0; return }
+      if (t - lastSeek.current < 3000 || t - loadAt.current < 2500) { driftSince.current = 0; return }
       // Nessuna accelerazione né rallentamento (su YouTube fanno suonare la voce veloce e a scatti).
       // All'inizio il secondo schermo resta MUTO mentre si allinea (uno o due salti che non si sentono); quando è allineato
       // accende l'audio e da lì in poi non lo tocca più, salvo scarti grandi e duraturi (es. dopo un blocco della rete).
       if (!aligned.current) {
-        if (ad > 0.1) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
-        const need = driftSince.current > 0 && t - driftSince.current > 600 && t - lastSeek.current > 2200 && alignSeeks.current < 2
+        if (ad > 0.3) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
+        const need = driftSince.current > 0 && t - driftSince.current > 800 && t - lastSeek.current > 3000
         if (need) {
-          alignSeeks.current++
           driftSince.current = 0
           lastSeek.current = t
           seekAt.current = t
           seekBuffered.current = false
-          p.seekTo?.(exp + (lagMs.current || 300) / 1000, true)
-        } else if (ad <= 0.1 || alignSeeks.current >= 2 || t - loadAt.current > 10000) {
+          p.seekTo?.(exp + lagMs.current / 1000, true)
+        } else if (ad <= 0.3 || t - loadAt.current > 9000) {
           aligned.current = true
           if (keepMuted.current && !mutedRef.current) tryUnmute()
         }
         return
       }
       // subito dopo un «Da capo» si segue il principale al volo
-      if (t - restartAt.current < 12000 && ad > 0.15 && t - lastSeek.current > 2500 && restartSeeks.current < 3) {
-        restartSeeks.current++
+      if (t - restartAt.current < 10000 && ad > 0.5 && t - lastSeek.current > 1500) {
         lastSeek.current = t
         seekAt.current = t
         seekBuffered.current = false
-        p.seekTo?.(exp + (lagMs.current || 300) / 1000, true)
+        p.seekTo?.(exp + lagMs.current / 1000, true)
         return
       }
-      // dopo l'allineamento il video non si tocca più: salti solo per scarti grandi e duraturi (es. dopo un blocco della rete)
       if (ad > 1.2) { if (!driftSince.current) driftSince.current = t } else driftSince.current = 0
-      const dur = driftSince.current > 0 ? t - driftSince.current : 0
-      // al massimo 2 salti correttivi per canzone: su un dispositivo lento ogni salto fa ricaricare il video e si finirebbe a scatti
-      if (lateSeeks.current < 2 && ((ad > 3 && t - lastSeek.current > 3000) || (dur > 3000 && t - lastSeek.current > 10000))) {
-        lateSeeks.current++
+      const sustained = driftSince.current > 0 && t - driftSince.current > 3000
+      if ((ad > 3 && t - lastSeek.current > 3000) || (sustained && t - lastSeek.current > 10000)) {
         driftSince.current = 0
         lastSeek.current = t
         seekAt.current = t
         seekBuffered.current = false
-        p.seekTo?.(exp + (lagMs.current || 300) / 1000, true)
+        p.seekTo?.(exp + lagMs.current / 1000, true)
       }
     }, 200)
     return () => clearInterval(t)
