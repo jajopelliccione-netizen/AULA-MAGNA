@@ -31,8 +31,11 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
   // Su Safari/iPad l'audio senza un tocco non è concesso: il video resta muto e compare «Tocca per attivare l'audio».
   const keepMuted = useRef(false)
   const attempting = useRef(false)
+  const lastSeek = useRef(0)
   const blockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [tap, setTap] = useState<'none' | 'unmute' | 'native'>('none')
+  const [tap, setTapState] = useState<'none' | 'unmute' | 'native'>('none')
+  const tapRef = useRef<'none' | 'unmute' | 'native'>('none')
+  const setTap = (t: 'none' | 'unmute' | 'native') => { tapRef.current = t; setTapState(t) }
 
   const stateRef = useRef(state)
   const activeRef = useRef(active)
@@ -254,6 +257,11 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       if (!p || !readyRef.current || !activeRef.current) return
       const s = stateRef.current
       if (!s.nowPlaying || loadedRef.current !== s.nowPlaying.queueId) return
+      // rete di sicurezza: se il video è fermo (pausa di YouTube con titolo e «Altri video») ma doveva andare, lo rimette in riproduzione
+      if (s.playerStatus === 'playing' && tapRef.current === 'none') {
+        const st = p.getPlayerState?.()
+        if (st === 2 || st === 5 || st === -1) p.playVideo?.()
+      }
       if (role === 'master') {
         if (s.playerStatus === 'playing') publish()
         return
@@ -261,7 +269,11 @@ export default function KaraokePlayer({ state, active, role, muted = false, serv
       const exp = expectedPos()
       if (exp === null) return
       const cur = Number(p.getCurrentTime?.() ?? 0)
-      if (Math.abs(cur - exp) > (s.sync?.paused ? 0.3 : 0.35)) p.seekTo?.(exp, true)
+      // niente seek a raffica: dopo un riallineamento si lascia al video il tempo di ripartire
+      if (Math.abs(cur - exp) > (s.sync?.paused ? 0.3 : 0.35) && Date.now() - lastSeek.current > 2500) {
+        lastSeek.current = Date.now()
+        p.seekTo?.(exp, true)
+      }
     }, 1000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
